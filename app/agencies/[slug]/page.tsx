@@ -2,10 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AgencyTeamVisualizer } from "@/components/AgencyTeamVisualizer";
-import { Navbar } from "@/components/Navbar";
-import { SiteFooter } from "@/components/SiteFooter";
-import { SEEDED_AGENCIES } from "@/lib/agency-team";
-import { readAgencies, readAgencyBySlug } from "@/lib/agencies-store";
+import { AGENCIES, getAgencyBySlug } from "@/lib/agency-team";
 
 function formatSlugTitle(slug: string): string {
   return slug
@@ -16,7 +13,7 @@ function formatSlugTitle(slug: string): string {
 }
 
 export function generateStaticParams() {
-  return SEEDED_AGENCIES.map((agency) => ({ slug: agency.slug }));
+  return AGENCIES.map((agency) => ({ slug: agency.slug }));
 }
 
 export async function generateMetadata({
@@ -25,8 +22,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const seeded = SEEDED_AGENCIES.find((a) => a.slug === slug);
-  const label = seeded?.name ?? formatSlugTitle(slug);
+  const matched = getAgencyBySlug(slug);
+  const label = matched?.name ?? formatSlugTitle(slug);
   return {
     title: `${label} · Teamoverzicht & Organigram | WerkRecht NL`,
     description: `Visueel teamoverzicht in LinkedIn-stijl, interactief organigram en fraudepreventie-checklist voor ${label}.`,
@@ -39,16 +36,13 @@ async function AgencyDetailSection({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [agency, agencies] = await Promise.all([
-    readAgencyBySlug(slug),
-    readAgencies(),
-  ]);
+  const agency = getAgencyBySlug(slug);
 
   if (!agency) {
     notFound();
   }
 
-  const allAgencies = agencies.map((a) => ({
+  const allAgencies = AGENCIES.map((a) => ({
     id: a.id,
     slug: a.slug,
     name: a.name,
@@ -81,16 +75,8 @@ export default function AgencyDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   return (
-    <div id="top" className="flex min-h-screen flex-col">
-      <Navbar activePage="agencies" />
-
-      <main className="flex-1">
-        <Suspense fallback={<AgencyDetailFallback />}>
-          <AgencyDetailSection params={params} />
-        </Suspense>
-      </main>
-
-      <SiteFooter variant="agency-detail" />
-    </div>
+    <Suspense fallback={<AgencyDetailFallback />}>
+      <AgencyDetailSection params={params} />
+    </Suspense>
   );
 }

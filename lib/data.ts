@@ -468,40 +468,58 @@ export interface BrusselsChannel {
 
 export const BRUSSELS_CHANNELS: BrusselsChannel[] = [
   {
+    id: "ep-petitions",
+    name: "European Parliament Petitions (PETI)",
+    shortTag: "1 Europe · Job-Offer Ban & Market Removal",
+    scope:
+      "Submit collective petitions to Brussels demanding EU-wide job-posting bans (interdict) and revocation of cross-border recruitment permits for repeat-offender agencies.",
+    url: "https://www.europarl.europa.eu/petitions/en/home",
+    actionLabel: "Petition EU Parliament (PETI) ↗",
+  },
+  {
     id: "ela",
     name: "European Labour Authority (ELA)",
-    shortTag: "EU Mobility & Joint Inspections",
+    shortTag: "EU-Wide Joint Cross-Border Inspections",
     scope:
-      "Supports cross-border labor inspections, social dumping investigations, and fair mobility enforcement across EU member states.",
+      "Coordinates cross-border labor inspections across NL, Belgium, Germany, Poland, Romania & Hungary when national enforcement stalls.",
     url: "https://www.ela.europa.eu/",
     actionLabel: "Visit ELA (EU) ↗",
   },
   {
     id: "eu-commission",
-    name: "European Commission · EU Law Breach Complaint",
-    shortTag: "Brussels Infringement Channel",
+    name: "European Commission · EU Law Breach",
+    shortTag: "Brussels Infringement & Market Oversight",
     scope:
-      "Formal Brussels portal to report systemic national failures or breaches of EU labor directives by a member state.",
+      "Formal Brussels portal to report systemic national failures, regulatory capture, or breaches of EU labor directives across member states.",
     url: "https://commission.europa.eu/about-european-commission/contact/problems-and-complaints/complaints-about-breaches-eu-law-member-countries_en",
     actionLabel: "Report EU Law Breach ↗",
   },
   {
     id: "solvit",
     name: "SOLVIT (EU Internal Market Network)",
-    shortTag: "Cross-Border Expat Rights",
+    shortTag: "Cross-Border Worker Rights",
     scope:
-      "Free EU network resolving cross-border problems where public authorities fail to uphold EU free-movement and worker rights.",
+      "Free EU network intervening when national public authorities fail to enforce EU free-movement and equal-treatment rights.",
     url: "https://solvit.ec.europa.eu/",
     actionLabel: "Open SOLVIT EU ↗",
   },
   {
-    id: "ep-petitions",
-    name: "European Parliament Petitions (PETI)",
-    shortTag: "Brussels Political Oversight",
+    id: "germany-zoll",
+    name: "Germany · Zoll (FKS Labor Enforcement)",
+    shortTag: "DE Cross-Border Wage & Posting Check",
     scope:
-      "Submit formal collective petitions to Brussels highlighting widespread cross-border agency abuse or national enforcement gaps.",
-    url: "https://www.europarl.europa.eu/petitions/en/home",
-    actionLabel: "Petition Brussels (PETI) ↗",
+      "German federal customs & labor enforcement (Finanzkontrolle Schwarzarbeit) covering cross-border posting, minimum wage & illegal deductions along DE/NL corridors.",
+    url: "https://www.zoll.de/EN/Businesses/Work/work_node.html",
+    actionLabel: "Germany Zoll (FKS) ↗",
+  },
+  {
+    id: "belgium-siod",
+    name: "Belgium · SIOD / Meldpunt Sociale Fraude",
+    shortTag: "BE Cross-Border Social Fraud Portal",
+    scope:
+      "Official Belgian Social Intelligence & Investigation Service portal for reporting cross-border wage fraud, social dumping, and agency exploitation across BE/NL.",
+    url: "https://www.meldpuntsocialefraude.belgie.be/",
+    actionLabel: "Belgium Fraud Portal ↗",
   },
 ];
 
@@ -517,6 +535,15 @@ export function formatLegalBrief(report: WorkerReport): string {
     report.evidenceHeld.length > 0
       ? report.evidenceHeld.map((e) => `  - [x] ${EVIDENCE_LABELS[e]}`).join("\n")
       : "  - (No offline evidence items selected yet)";
+  const attachmentList =
+    report.attachments.length > 0
+      ? report.attachments
+          .map(
+            (att) =>
+              `  - [FILE] ${att.fileName} (${EVIDENCE_LABELS[att.type]}) -> Private Vault: ${att.blobUrl}`
+          )
+          .join("\n")
+      : "  - (No private vault files attached)";
 
   return [
     "================================================================",
@@ -546,6 +573,10 @@ export function formatLegalBrief(report: WorkerReport): string {
     "3. SUPPORTING EVIDENCE HELD BY WORKER (FOR DIRECT SUBMISSION)",
     "----------------------------------------------------------------",
     evidenceList,
+    "",
+    "3B. PRIVATE VAULT ATTACHMENTS",
+    "----------------------------------------------------------------",
+    attachmentList,
     "",
     "4. COMPETENT DUTCH ENFORCEMENT BODIES",
     "----------------------------------------------------------------",

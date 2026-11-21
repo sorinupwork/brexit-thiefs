@@ -665,6 +665,11 @@ export const UI_TEXT = {
       principleLabel: "MISSIE:",
       principleBody:
         "Geen winstoogmerk of adviesbureau: wij maken zichtbaar welke afdelingen en teams misbruik plegen zodat bureaus gedwongen worden eerlijk te handelen, en geven jou kant-en-klare bewijzen en formulieren om te procederen.",
+      heroLedgerTitle: "Live Database Bewijsstand (Alleen Echte Ingediende Cijfers)",
+      heroStolenLabel: "Gestolen / Terug Te Betalen",
+      heroCasesLabel: "Echte Zaken",
+      heroVotesLabel: "Stemmen & Bevestigingen",
+      heroCommentsLabel: "Community Reacties",
     },
     agencySpotlight: {
       eyebrow: "01 · Visualiseer Bureauteams, Misstanden & Bevestigingsvragen",
@@ -890,14 +895,15 @@ export const UI_TEXT = {
       votesFlagsLabel: "Stemmen & Vlaggen",
       commentsCountLabel: "Reacties",
       quizConfirmsLabel: "Vraag-Bevestigingen",
-      brusselsHeading: "Dien Direct In bij Officiële Nederlandse & EU-Instanties",
+      brusselsHeading:
+        "1 Europa · Dien In bij Europees Parlement, ELA, België, Duitsland & NL",
       brusselsSub:
-        "Combineer jouw eigen loonstroken met ons collectieve community-dossier (.txt) en dien rechtstreeks in bij de officiële meldpunten en formulieren hieronder.",
+        "Alleen interne Nederlandse loketten zijn vaak niet genoeg — instanties en bureaus werken soms langs elkaar heen of adviseurs vragen vooraf geld terwijl jouw loon is gestolen. Bundel ons bewijs als 1 Europa en dien in bij het Europees Parlement (PETI) voor een EU-breed vacatureverbod en marktuitzetting, plus grensoverschrijdende inspecties in NL, België (SIOD) en Duitsland (Zoll).",
       exportBrusselsBtn:
-        "Download Collectief Dossier voor Instanties (.txt)",
+        "Download Collectief 1-Europa & Instantie Dossier (.txt)",
       poll1Title: "Poll 1 · Welke Misstand Moet Direct Gestopt Worden?",
-      poll2Title: "Poll 2 · Welke Nederlandse Instantie Moet Nu Ingrijpen?",
-      poll3Title: "Poll 3 · Welke Europese / Brussel Actie Heeft Prioriteit?",
+      poll2Title: "Poll 2 · Nationale & Grensoverschrijdende Actie (NL / BE / DE)",
+      poll3Title: "Poll 3 · Europees Parlement & Brussel Actie (1 Europa)",
       pollTotalVotes: "stemmen",
       pollVotedTag: "Jouw stem meegeteld ✓",
       pollHint: "Klik op één optie om te stemmen (opgeslagen voor officiële dossiers).",
@@ -972,7 +978,8 @@ export const UI_TEXT = {
         },
         {
           id: "ep-peti-petition",
-          label: "Europees Parlement petitie (PETI) door werknemers",
+          label:
+            "Europees Parlement (PETI) · Verbod op vacatures & corrupte bureaus uit de EU zetten",
         },
         {
           id: "solvit-network",
@@ -984,6 +991,9 @@ export const UI_TEXT = {
       commentsIntro:
         "Lees reacties van andere werknemers, klik op '+ Bevestig (Mij ook overkomen)' en voeg jouw feitelijke waarschuwing toe. Alle reacties worden meegeëxporteerd naar het collectieve instantie-dossier.",
       commentFilterAll: "Alle",
+      commentsEmptyTitle: "Nog geen community-reacties geplaatst.",
+      commentsEmptySub:
+        "Deel rechts als eerste wat er bij jouw uitzendbureau gebeurde zodat anderen het kunnen bevestigen.",
       commentConfirmBtn: "Mij ook overkomen / Bevestig",
       commentConfirmedBtn: "Bevestigd ✓",
       commentSampleBadge: "Voorbeeld",
@@ -1065,10 +1075,13 @@ export const UI_TEXT = {
       colBodies: "Officiële Instanties & Formulieren",
       disclaimer:
         "Informatief juridisch overzicht — laat formele dagvaardingen en vaststellingsovereenkomsten altijd controleren door Het Juridisch Loket of een arbeidsrechtadvocaat.",
-      authEyebrow: "07 · Officiële Nederlandse Instanties & Meldformulieren",
-      authHeading: "Meld & Dien Rechtstreeks In bij Politie, Inspectie & Toezichthouders",
+      authEyebrow: "07 · Officiële Nationale & Europese Instanties (NL · BE · DE · EU)",
+      authHeading: "Meld Grensoverschrijdend — En Pas Op Voor Betaalde of Passieve Loketten",
       authIntro:
-        "Gebruik het geëxporteerde dossier en je eigen loonstroken om direct het officiële meldingsformulier in te vullen bij de bevoegde Nederlandse instantie.",
+        "Vertrouw nooit blind op één nationaal loket als bureaus en lokale partijen onderling verweven zijn, en betaal geen voorafgaande advieskosten als je loon is gestolen. Gebruik altijd ook de grensoverschrijdende 1-Europa kanalen (Europees Parlement PETI, ELA, België SIOD, Duitsland Zoll) om een EU-breed vacatureverbod af te dwingen.",
+      cautionBannerTitle: "WAARSCHUWING VOOR PASSIEVE OF GELDVRAGENDE LOKETTEN:",
+      cautionBannerBody:
+        "Intern alleen klagen houdt corrupte bureaus vaak in leven omdat ze te veel verdienen. Als een bureau, advocaat of lokaal loket geld vraagt vóór hulp of je afscheept: bewaar alles en escaleer collectief naar België (SIOD), Duitsland (Zoll), ELA en het Europees Parlement (PETI) om hun wervingsvergunning in heel Europa te blokkeren.",
       primaryBadge: "Hoofdinstantie",
     },
     objection: {
@@ -1111,9 +1124,9 @@ export const UI_TEXT = {
       searchPlaceholder:
         "Zoek op zaaknummer, bureau, regio of trefwoord...",
       allFilter: "Alle",
-      emptyTitle: "Geen overeenkomende meldingen gevonden.",
+      emptyTitle: "Nog geen ingediende zaken in de database.",
       emptySub:
-        "Wis je filter of dien rechts een nieuwe gestructureerde melding in.",
+        "Alle getoonde bedragen zijn 100% echt — dien rechts het eerste gedocumenteerde dossier in om de terugvorderingsteller te starten.",
       sampleBadge: "Illustratief Voorbeeld",
       regionLabel: "Regio:",
       stageLabel: "Fase:",
@@ -1155,9 +1168,22 @@ export const UI_TEXT = {
       timelinePlaceholder:
         "Week 1: Contract getekend en gestart.\nWeek 10: Terugwerkende inhouding op loonstrook.\nWeek 11: Schriftelijk bezwaar verstuurd met verzoek om berekening.",
       evidenceCheckHeading: "Bewijsstukken die je Offline Bewaart",
-      vaultTitle: "Bewijskluis Upload (Voorbereid)",
+      vaultTitle: "Privé Bewijskluis Upload (Vercel Private Blob)",
       vaultDesc:
-        "Houd originele PDF-loonstroken, tankbonnen, bel-logs en woningfoto's veilig op je eigen apparaat om mee te sturen bij je officiële aanvraag.",
+        "Upload loonstroken, contracten, bankafschriften of foto's van woongebreken (PDF, JPG, PNG, WebP · max 4,5 MB). Bestanden worden privé opgeslagen — zwart/blur altijd je BSN en gezichten.",
+      uploadTypeLabel: "Type bewijsbestand",
+      uploadFileLabel: "Kies bestand (max 4,5 MB)",
+      uploadRedactedConfirm:
+        "Ik bevestig dat BSN-nummers en gezichten onherkenbaar zijn gemaakt.",
+      uploadErrorRedacted:
+        "Bevestig eerst dat BSN en gezichten zijn verwijderd/geblurd.",
+      uploadErrorGeneric: "Uploaden naar privékluis mislukt.",
+      uploadBtn: "Bestand Uploaden",
+      uploadingBtn: "Uploaden...",
+      uploadMaxHint: "Max 5 bestanden per zaak · Privé opgeslagen",
+      uploadRemoveBtn: "Verwijder",
+      attachmentsHeading: "Geüploade Bestanden (Privékluis)",
+      viewPrivateFileBtn: "Bekijk Bestand ↗",
       autoMatchHeading: "Gekoppelde Instanties voor Deze Categorie",
       privacyConfirm:
         "Ik bevestig dat deze melding feitelijk is en GEEN privételefoonnummers, BSN of privéadressen van individuen publiceert.",
@@ -1463,6 +1489,11 @@ export const UI_TEXT = {
       principleLabel: "PLATFORM PURPOSE:",
       principleBody:
         "Not a business—just worker solidarity and undeniable proof: we highlight corrupt agency departments and practices to force fairness and send ready-made dossiers & forms straight to official institutes.",
+      heroLedgerTitle: "Live Database Ledger (100% Real User Submissions Only)",
+      heroStolenLabel: "Stolen / Needs Reimbursement",
+      heroCasesLabel: "Real Cases Filed",
+      heroVotesLabel: "Votes & Confirmations",
+      heroCommentsLabel: "Community Comments",
     },
     agencySpotlight: {
       eyebrow: "01 · Visualize Agency Teams, Corrupt Patterns & Confirmation Questions",
@@ -1688,14 +1719,15 @@ export const UI_TEXT = {
       votesFlagsLabel: "Votes & Flags",
       commentsCountLabel: "Comments",
       quizConfirmsLabel: "Quiz Confirms",
-      brusselsHeading: "Apply Directly to Official Dutch & Brussels / EU Institutes",
+      brusselsHeading:
+        "1 Europe · Escalate to European Parliament, ELA, Belgium, Germany & NL",
       brusselsSub:
-        "Download the collective community dossier (.txt) containing all poll tallies, agency flags, comments, and cases, and attach it alongside your payslips at the official institute forms below.",
+        "Relying only on internal national offices is not enough—corrupt agencies and local networks protect each other, and paid legal desks ask workers for money right after their wages were stolen. Unite as 1 Europe: export our collective proof and file with the European Parliament (PETI) to ban their job postings and expel repeat offenders from the EU market, alongside Belgium (SIOD), Germany (Zoll), and ELA.",
       exportBrusselsBtn:
-        "Download Collective Official Institute Dossier (.txt)",
+        "Download Collective 1-Europe & Institute Dossier (.txt)",
       poll1Title: "Poll 1 · Which Abuse Must Official Institutes Stop First?",
-      poll2Title: "Poll 2 · Which Dutch Official Institute Action Should Happen Now?",
-      poll3Title: "Poll 3 · Priority External Brussels / EU Action",
+      poll2Title: "Poll 2 · National & Cross-Border Action (NL / BE / DE)",
+      poll3Title: "Poll 3 · European Parliament & Brussels Action (1 Europe)",
       pollTotalVotes: "votes",
       pollVotedTag: "Your vote recorded ✓",
       pollHint: "Click an option to vote (saved to the collective institute dossier).",
@@ -1770,7 +1802,8 @@ export const UI_TEXT = {
         },
         {
           id: "ep-peti-petition",
-          label: "Submit European Parliament (PETI) worker petition",
+          label:
+            "European Parliament (PETI) · Ban their job offers & expel corrupt agencies from EU",
         },
         {
           id: "solvit-network",
@@ -1782,6 +1815,9 @@ export const UI_TEXT = {
       commentsIntro:
         "Read community warnings, click '+ Confirm (Happened to me too)' on patterns you recognize, and post your own factual comment so official institutes see collective evidence.",
       commentFilterAll: "All",
+      commentsEmptyTitle: "No community comments posted yet.",
+      commentsEmptySub:
+        "Be the first to share what happened at your staffing agency on the right so other workers can confirm it.",
       commentConfirmBtn: "Happened to me too / Confirm",
       commentConfirmedBtn: "Confirmed ✓",
       commentSampleBadge: "Sample",
@@ -1863,10 +1899,13 @@ export const UI_TEXT = {
       colBodies: "Official Institutes & Forms",
       disclaimer:
         "Informational legal framework overview only — always verify court deadlines, demand letters (sommatiebrief), and settlement waivers with Het Juridisch Loket or a Dutch employment lawyer.",
-      authEyebrow: "07 · Official Dutch Institutes & Reporting Forms",
-      authHeading: "Apply Directly to Politie, Labour Authority & Regulators",
+      authEyebrow: "07 · Official Cross-Border & National Institutes (NL · BE · DE · EU)",
+      authHeading: "Apply Across 1 Europe — Beware Passive or Fee-Charging Desks",
       authIntro:
-        "Use your exported individual brief + our collective community dossier + your payslips when submitting directly through the official institute forms below.",
+        "Internal domestic complaints alone will never force repeat offenders out of Europe when local networks protect each other or advisors demand fees from unpaid workers. Always escalate in parallel across NL, Belgium (SIOD), Germany (Zoll), ELA, and the European Parliament (PETI) to ban their job offers across the EU.",
+      cautionBannerTitle: "COMMUNITY WARNING · AVOID CORRUPT OR FEE-CHARGING INTERMEDIARIES:",
+      cautionBannerBody:
+        "Never pay upfront fees to desks or intermediaries while your wages are stolen, and do not stop at one slow local desk. Escalate externally to European Parliament (PETI), ELA, European Commission, Belgium SIOD, and Germany Zoll FKS so repeat-offender agencies lose their permits and job-posting rights across Europe.",
       primaryBadge: "Primary Body",
     },
     objection: {
@@ -1909,9 +1948,9 @@ export const UI_TEXT = {
       searchPlaceholder:
         "Search by case reference, agency, region, or keyword...",
       allFilter: "All",
-      emptyTitle: "No matching reports found.",
+      emptyTitle: "No real user cases filed in the database yet.",
       emptySub:
-        "Clear your filter or submit a new structured report on the right.",
+        "Zero fake numbers are shown—submit the first documented case on the right to start the real reimbursement ledger.",
       sampleBadge: "Illustrative Sample",
       regionLabel: "Region:",
       stageLabel: "Stage:",
@@ -1953,9 +1992,22 @@ export const UI_TEXT = {
       timelinePlaceholder:
         "Week 1: Signed contract & started work.\nWeek 10: Retroactive deduction appeared on payslip.\nWeek 11: Sent written objection requesting itemized calculation.",
       evidenceCheckHeading: "Supporting Proof You Hold Offline",
-      vaultTitle: "Evidence Checklist (Keep Originals Safe)",
+      vaultTitle: "Private Evidence Vault Upload (Vercel Private Blob)",
       vaultDesc:
-        "Keep original PDF payslips, fuel receipts, unanswered call logs, and housing photos safely on your device to attach to official institute forms.",
+        "Upload redacted payslips, contracts, bank statements, or housing defect photos (PDF, JPG, PNG, WebP · max 4.5 MB). Files stay private—always blur/remove your BSN and faces.",
+      uploadTypeLabel: "Evidence file type",
+      uploadFileLabel: "Select file (max 4.5 MB)",
+      uploadRedactedConfirm:
+        "I confirm my BSN number and any third-party faces are redacted/blurred.",
+      uploadErrorRedacted:
+        "Please confirm BSN numbers and third-party faces are redacted before uploading.",
+      uploadErrorGeneric: "Failed to upload file to private vault.",
+      uploadBtn: "Upload Evidence File",
+      uploadingBtn: "Uploading...",
+      uploadMaxHint: "Up to 5 files per case · Stored privately",
+      uploadRemoveBtn: "Remove",
+      attachmentsHeading: "Uploaded Proof Files (Private Vault)",
+      viewPrivateFileBtn: "Open File ↗",
       autoMatchHeading: "Matched Official Channels for This Category",
       privacyConfirm:
         "I confirm this report states factual events only and does NOT publish private phone numbers, BSNs, or home addresses of individuals.",

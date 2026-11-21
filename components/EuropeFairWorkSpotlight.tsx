@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  confirmCommentAction,
+  createCommentAction,
+} from "@/actions/comments";
+import { submitVoteAction } from "@/actions/votes";
 import { useLanguage } from "@/components/LanguageProvider";
 import {
   formatBrusselsAggregatedBrief,
@@ -17,13 +22,23 @@ import type {
   InstituteActionOptionId,
   PollState,
   RedFlagPollOptionId,
+  UserVotesState,
   WorkerReport,
 } from "@/lib/types";
+import {
+  mergeUniqueIds,
+  useLocalStorageList,
+  useLocalStorageValue,
+  useSyncedUserVotes,
+  writeLocalStorageList,
+  writeLocalStorageValue,
+} from "@/lib/client-storage";
 
 interface EuropeFairWorkSpotlightProps {
   initialReports: WorkerReport[];
   initialPolls: PollState;
   initialComments: CommunityComment[];
+  initialUserVotes: UserVotesState;
 }
 
 const VOTE_EVENT = "werkrecht-local-vote-change";
@@ -37,61 +52,11 @@ const COMMENT_TOPICS: CommentTopicId[] = [
   "rights-lawsuit",
 ];
 
-function subscribeStorageEvent(eventName: string) {
-  return (callback: () => void) => {
-    window.addEventListener("storage", callback);
-    window.addEventListener(eventName, callback);
-    return () => {
-      window.removeEventListener("storage", callback);
-      window.removeEventListener(eventName, callback);
-    };
-  };
-}
-
-function useVotedOption(storageKey: string): string | null {
-  return useSyncExternalStore(
-    subscribeStorageEvent(VOTE_EVENT),
-    () => {
-      try {
-        return window.localStorage.getItem(storageKey);
-      } catch {
-        return null;
-      }
-    },
-    () => null
-  );
-}
-
-function useConfirmedComments(): string[] {
-  const raw = useSyncExternalStore(
-    subscribeStorageEvent(COMMENT_CONFIRM_EVENT),
-    () => {
-      try {
-        return (
-          window.localStorage.getItem("werkrecht_confirmed_comments") ?? "[]"
-        );
-      } catch {
-        return "[]";
-      }
-    },
-    () => "[]"
-  );
-  return useMemo(() => {
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed)
-        ? parsed.filter((x): x is string => typeof x === "string")
-        : [];
-    } catch {
-      return [];
-    }
-  }, [raw]);
-}
-
 export function EuropeFairWorkSpotlight({
   initialReports,
   initialPolls,
   initialComments,
+  initialUserVotes,
 }: EuropeFairWorkSpotlightProps) {
   const { locale } = useLanguage();
   const copy = UI_TEXT[locale].europeSpotlight;
@@ -100,6 +65,7 @@ export function EuropeFairWorkSpotlight({
   const [reports, setReports] = useState<WorkerReport[]>(initialReports);
   const [polls, setPolls] = useState<PollState>(initialPolls);
   const [comments, setComments] = useState<CommunityComment[]>(initialComments);
+  const [userVotes, updateUserVotes] = useSyncedUserVotes(initialUserVotes);
   const [votingKind, setVotingKind] = useState<string | null>(null);
 
   // Community comments state
@@ -118,10 +84,24 @@ export function EuropeFairWorkSpotlight({
     null
   );
 
-  const votedRedFlag = useVotedOption("werkrecht_vote_red_flag");
-  const votedInstitute = useVotedOption("werkrecht_vote_institute_action");
-  const votedBrussels = useVotedOption("werkrecht_vote_brussels_action");
-  const confirmedComments = useConfirmedComments();
+  const localVotedRedFlag =
+    useLocalStorageValue("werkrecht_vote_red_flag", VOTE_EVENT) || null;
+  const localVotedInstitute =
+    useLocalStorageValue("werkrecht_vote_institute_action", VOTE_EVENT) || null;
+  const localVotedBrussels =
+    useLocalStorageValue("werkrecht_vote_brussels_action", VOTE_EVENT) || null;
+  const localConfirmedComments = useLocalStorageList(
+    "werkrecht_confirmed_comments",
+    COMMENT_CONFIRM_EVENT
+  );
+
+  const votedRedFlag = userVotes.redFlagVote ?? localVotedRedFlag;
+  const votedInstitute = userVotes.instituteActionVote ?? localVotedInstitute;
+  const votedBrussels = userVotes.brusselsActionVote ?? localVotedBrussels;
+  const confirmedComments = useMemo(
+    () => mergeUniqueIds(userVotes.confirmedComments, localConfirmedComments),
+    [userVotes.confirmedComments, localConfirmedComments]
+  );
 
   useEffect(() => {
     function onReportAdded(e: Event) {
@@ -220,6 +200,14 @@ export function EuropeFairWorkSpotlight({
           ? "werkrecht_vote_institute_action"
           : "werkrecht_vote_brussels_action";
 
+    const alreadySelected =
+      kind === "red-flag"
+        ? votedRedFlag
+        : kind === "institute-action"
+          ? votedInstitute
+          : votedBrussels;
+    if (alreadySelected) return;
+
     try {
       if (window.localStorage.getItem(storageKey)) return;
     } catch {
@@ -228,22 +216,28 @@ export function EuropeFairWorkSpotlight({
 
     setVotingKind(`${kind}:${targetId}`);
     try {
-      const res = await fetch("/api/polls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, targetId }),
-      });
-      const payload = (await res.json()) as { polls?: PollState };
-      if (res.ok && payload.polls) {
-        setPolls(payload.polls);
-        try {
-          window.localStorage.setItem(storageKey, targetId);
-        } catch {
-          // Ignore storage error
+      const result = await submitVoteAction(
+        kind === "red-flag"
+          ? { kind: "red-flag", targetId: targetId as RedFlagPollOptionId }
+          : kind === "institute-action"
+            ? {
+              kind: "institute-action",
+              targetId: targetId as InstituteActionOptionId,
+            }
+            : {
+              kind: "brussels-action",
+              targetId: targetId as BrusselsActionOptionId,
+            }
+      );
+
+      if (result.ok && result.polls) {
+        setPolls(result.polls);
+        if (result.userVotes) {
+          updateUserVotes(result.userVotes);
         }
-        window.dispatchEvent(new Event(VOTE_EVENT));
+        writeLocalStorageValue(storageKey, targetId, VOTE_EVENT);
         window.dispatchEvent(
-          new CustomEvent("werkrecht-polls-updated", { detail: payload.polls })
+          new CustomEvent("werkrecht-polls-updated", { detail: result.polls })
         );
       }
     } finally {
@@ -255,23 +249,18 @@ export function EuropeFairWorkSpotlight({
     if (confirmedComments.includes(commentId)) return;
     setConfirmingCommentId(commentId);
     try {
-      const res = await fetch("/api/comments", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ commentId }),
-      });
-      const payload = (await res.json()) as { comments?: CommunityComment[] };
-      if (res.ok && payload.comments) {
-        setComments(payload.comments);
-        try {
-          window.localStorage.setItem(
-            "werkrecht_confirmed_comments",
-            JSON.stringify([...confirmedComments, commentId])
-          );
-        } catch {
-          // Ignore storage error
+      const result = await confirmCommentAction(commentId);
+      if (result.ok && result.comments) {
+        setComments(result.comments);
+        if (result.userVotes) {
+          updateUserVotes(result.userVotes);
         }
-        window.dispatchEvent(new Event(COMMENT_CONFIRM_EVENT));
+        writeLocalStorageList(
+          "werkrecht_confirmed_comments",
+          mergeUniqueIds(confirmedComments, [commentId]),
+          COMMENT_CONFIRM_EVENT
+        );
+        window.dispatchEvent(new Event("werkrecht-comment-confirmed"));
       }
     } finally {
       setConfirmingCommentId(null);
@@ -290,29 +279,23 @@ export function EuropeFairWorkSpotlight({
 
     setCommentSubmitting(true);
     try {
-      const res = await fetch("/api/comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agencyName: commentAgency,
-          topic: commentTopic,
-          corridor: commentCorridor,
-          authorAlias:
-            commentAlias.trim() ||
-            (locale === "nl" ? "Anonieme Werknemer" : "Anonymous Worker"),
-          body: commentBody,
-        }),
+      const result = await createCommentAction({
+        agencyName: commentAgency,
+        topic: commentTopic,
+        corridor: commentCorridor,
+        authorAlias:
+          commentAlias.trim() ||
+          (locale === "nl" ? "Anonieme Werknemer" : "Anonymous Worker"),
+        body: commentBody,
       });
-      const payload = (await res.json()) as {
-        comment?: CommunityComment;
-        error?: string;
-      };
-      if (!res.ok || !payload.comment) {
-        setCommentError(payload.error ?? copy.commentNetworkError);
+
+      if (!result.ok || !result.comment) {
+        setCommentError(result.error ?? copy.commentNetworkError);
         return;
       }
 
-      setComments((prev) => [payload.comment!, ...prev]);
+      setComments((prev) => [result.comment!, ...prev]);
+      window.dispatchEvent(new Event("werkrecht-comment-added"));
       setCommentCorridor("");
       setCommentAlias("");
       setCommentBody("");
@@ -336,7 +319,7 @@ export function EuropeFairWorkSpotlight({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `collective-official-institute-dossier-${locale}.txt`;
+    link.download = `collective-1europe-institute-dossier-${locale}.txt`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -468,7 +451,7 @@ export function EuropeFairWorkSpotlight({
           ))}
         </div>
 
-        {/* 3 Interactive Community Polls (Top Violations, Dutch Official Institutes, Brussels EU) */}
+        {/* 3 Interactive Community Polls (Server Actions -> Data Store) */}
         <div
           id="community-polls"
           className="mt-8 grid scroll-mt-24 grid-cols-1 gap-5 lg:grid-cols-3"
@@ -503,11 +486,10 @@ export function EuropeFairWorkSpotlight({
                     type="button"
                     disabled={Boolean(votedRedFlag) || isBusy}
                     onClick={() => castPollVote("red-flag", opt.id)}
-                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${
-                      isSelected
+                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${isSelected
                         ? "border-rose-400 bg-rose-950/40"
                         : "border-slate-800 bg-slate-950/60 hover:border-slate-600"
-                    } disabled:cursor-default`}
+                      } disabled:cursor-default`}
                   >
                     <div
                       className="absolute inset-y-0 left-0 bg-rose-500/20 transition-all duration-300"
@@ -528,7 +510,7 @@ export function EuropeFairWorkSpotlight({
             </div>
           </div>
 
-          {/* Poll 2: Dutch Official Institutes Priority */}
+          {/* Poll 2: Cross-Border National & Regional Actions */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-white">
@@ -558,11 +540,10 @@ export function EuropeFairWorkSpotlight({
                     type="button"
                     disabled={Boolean(votedInstitute) || isBusy}
                     onClick={() => castPollVote("institute-action", opt.id)}
-                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${
-                      isSelected
+                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${isSelected
                         ? "border-emerald-400 bg-emerald-950/35"
                         : "border-slate-800 bg-slate-950/60 hover:border-slate-600"
-                    } disabled:cursor-default`}
+                      } disabled:cursor-default`}
                   >
                     <div
                       className="absolute inset-y-0 left-0 bg-emerald-500/20 transition-all duration-300"
@@ -583,7 +564,7 @@ export function EuropeFairWorkSpotlight({
             </div>
           </div>
 
-          {/* Poll 3: Brussels / EU Action */}
+          {/* Poll 3: European Parliament & Brussels 1-Europe Action */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-white">
@@ -613,11 +594,10 @@ export function EuropeFairWorkSpotlight({
                     type="button"
                     disabled={Boolean(votedBrussels) || isBusy}
                     onClick={() => castPollVote("brussels-action", opt.id)}
-                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${
-                      isSelected
+                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${isSelected
                         ? "border-amber-400 bg-amber-950/30"
                         : "border-slate-800 bg-slate-950/60 hover:border-slate-600"
-                    } disabled:cursor-default`}
+                      } disabled:cursor-default`}
                   >
                     <div
                       className="absolute inset-y-0 left-0 bg-[#D95D24]/25 transition-all duration-300"
@@ -639,7 +619,7 @@ export function EuropeFairWorkSpotlight({
           </div>
         </div>
 
-        {/* Community Comments & Testimony Board (Persisted in data/comments.json) */}
+        {/* Community Comments & Testimony Board (Server Actions -> Data Store) */}
         <div
           id="community-comments"
           className="mt-8 scroll-mt-24 rounded-2xl border border-slate-800 bg-slate-900/80 p-5 sm:p-6"
@@ -672,11 +652,10 @@ export function EuropeFairWorkSpotlight({
                       key={tag}
                       type="button"
                       onClick={() => setCommentFilter(tag)}
-                      className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${
-                        active
+                      className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${active
                           ? "border-amber-400 bg-amber-500 text-slate-950"
                           : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500"
-                      }`}
+                        }`}
                     >
                       {tag === "all"
                         ? `${copy.commentFilterAll} (${comments.length})`
@@ -687,72 +666,77 @@ export function EuropeFairWorkSpotlight({
               </div>
 
               <div className="mt-4 max-h-[460px] space-y-3 overflow-y-auto pr-1">
-                {filteredComments.map((comment) => {
-                  const isConfirmed = confirmedComments.includes(comment.id);
-                  return (
-                    <article
-                      key={comment.id}
-                      className="rounded-xl border border-slate-800 bg-slate-950/90 p-4"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="rounded-md bg-slate-800 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-300">
-                            {comment.agencyName}
-                          </span>
-                          <span className="rounded-md bg-sky-500/15 px-2 py-0.5 font-mono text-[10px] text-sky-300">
-                            {getLocalizedCommentTopicLabel(
-                              comment.topic,
-                              locale
+                {filteredComments.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950/60 p-6 text-center">
+                    <p className="text-xs font-semibold text-slate-200">
+                      {copy.commentsEmptyTitle}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      {copy.commentsEmptySub}
+                    </p>
+                  </div>
+                ) : (
+                  filteredComments.map((comment) => {
+                    const isConfirmed = confirmedComments.includes(comment.id);
+                    return (
+                      <article
+                        key={comment.id}
+                        className="rounded-xl border border-slate-800 bg-slate-950/90 p-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="rounded-md bg-slate-800 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-300">
+                              {comment.agencyName}
+                            </span>
+                            <span className="rounded-md bg-sky-500/15 px-2 py-0.5 font-mono text-[10px] text-sky-300">
+                              {getLocalizedCommentTopicLabel(
+                                comment.topic,
+                                locale
+                              )}
+                            </span>
+                            {comment.corridor && (
+                              <span className="font-mono text-[10px] text-slate-400">
+                                {comment.corridor}
+                              </span>
                             )}
-                          </span>
-                          {comment.corridor && (
-                            <span className="font-mono text-[10px] text-slate-400">
-                              {comment.corridor}
-                            </span>
-                          )}
-                          {comment.isSeeded && (
-                            <span className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[9px] uppercase text-slate-400">
-                              {copy.commentSampleBadge}
-                            </span>
-                          )}
+                          </div>
+                          <time
+                            dateTime={comment.createdAt}
+                            className="font-mono text-[10px] text-slate-500"
+                          >
+                            {comment.createdAt.slice(0, 10)}
+                          </time>
                         </div>
-                        <time
-                          dateTime={comment.createdAt}
-                          className="font-mono text-[10px] text-slate-500"
-                        >
-                          {comment.createdAt.slice(0, 10)}
-                        </time>
-                      </div>
 
-                      <p className="mt-2.5 text-xs leading-relaxed text-slate-200 sm:text-sm">
-                        {comment.body}
-                      </p>
+                        <p className="mt-2.5 text-xs leading-relaxed text-slate-200 sm:text-sm">
+                          {comment.body}
+                        </p>
 
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80 pt-2.5">
-                        <span className="text-[11px] text-slate-400">
-                          {comment.authorAlias}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={
-                            isConfirmed || confirmingCommentId === comment.id
-                          }
-                          onClick={() => handleConfirmComment(comment.id)}
-                          className={`rounded-lg border px-2.5 py-1 font-mono text-[11px] font-semibold transition-colors ${
-                            isConfirmed
-                              ? "border-emerald-400/50 bg-emerald-500/20 text-emerald-200"
-                              : "border-slate-700 bg-slate-900 text-slate-200 hover:border-amber-400 hover:text-amber-300"
-                          }`}
-                        >
-                          {isConfirmed
-                            ? copy.commentConfirmedBtn
-                            : copy.commentConfirmBtn}{" "}
-                          ({comment.confirmations})
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80 pt-2.5">
+                          <span className="text-[11px] text-slate-400">
+                            {comment.authorAlias}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={
+                              isConfirmed || confirmingCommentId === comment.id
+                            }
+                            onClick={() => handleConfirmComment(comment.id)}
+                            className={`rounded-lg border px-2.5 py-1 font-mono text-[11px] font-semibold transition-colors ${isConfirmed
+                                ? "border-emerald-400/50 bg-emerald-500/20 text-emerald-200"
+                                : "border-slate-700 bg-slate-900 text-slate-200 hover:border-amber-400 hover:text-amber-300"
+                              }`}
+                          >
+                            {isConfirmed
+                              ? copy.commentConfirmedBtn
+                              : copy.commentConfirmBtn}{" "}
+                            ({comment.confirmations})
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -943,7 +927,7 @@ export function EuropeFairWorkSpotlight({
           </div>
         </div>
 
-        {/* External Brussels / EU Official Channels */}
+        {/* 1 Europe Cross-Border Official Channels (EU Parliament PETI, ELA, Belgium, Germany, Commission) */}
         <div
           id="brussels-channels"
           className="mt-8 scroll-mt-24 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6"
@@ -966,7 +950,7 @@ export function EuropeFairWorkSpotlight({
             </button>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {brusselsChannels.map((ch) => (
               <div
                 key={ch.id}

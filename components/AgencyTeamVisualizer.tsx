@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/components/LanguageProvider";
-import type {
-  AgencyDepartmentId,
-  AgencyRecord,
-  AgencyTeamMember,
+import { MemberPhotoModal } from "@/components/MemberPhotoModal";
+import {
+  getInitials,
+  type AgencyDepartmentId,
+  type AgencyRecord,
+  type AgencyTeamMember,
 } from "@/lib/agency-team";
 import {
   getLocalizedAgency,
@@ -38,13 +40,6 @@ function LinkedInIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
   );
 }
 
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-}
-
 export function AgencyTeamVisualizer({
   initialAgency,
   allAgencies,
@@ -65,17 +60,6 @@ export function AgencyTeamVisualizer({
     () => getLocalizedAgency(initialAgency, locale),
     [initialAgency, locale]
   );
-
-  useEffect(() => {
-    if (!inspectedMember) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setInspectedMember(null);
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [inspectedMember]);
 
   const activeDepartment =
     agency.departments.find((d) => d.id === selectedDeptId) ??
@@ -750,68 +734,25 @@ export function AgencyTeamVisualizer({
         </div>
       </section>
 
-      {/* Photo Inspection Lightbox Modal */}
-      {inspectedMember && inspectedMember.photoPath && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="inspected-member-title"
-          onClick={() => setInspectedMember(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-              <div>
-                <h3
-                  id="inspected-member-title"
-                  className="text-base font-semibold text-slate-950"
-                >
-                  {inspectedMember.name}
-                </h3>
-                <p className="text-xs text-slate-600">
-                  {inspectedMember.headline}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setInspectedMember(null)}
-                aria-label="Close photo view"
-                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                {copy.closeBtn}
-              </button>
-            </div>
-
-            <div className="relative aspect-square w-full bg-slate-100">
-              <Image
-                src={inspectedMember.photoPath}
-                alt={inspectedMember.photoAlt}
-                fill
-                sizes="(max-width: 640px) 100vw, 512px"
-                className="object-contain"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-5 py-3.5">
-              <span className="font-mono text-[11px] text-slate-600">
-                {inspectedMember.sourceNote}
-              </span>
-              <a
-                href={inspectedMember.linkedInSearchUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0A66C2] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#004182]"
-              >
-                <LinkedInIcon className="h-3.5 w-3.5" />
-                {inspectedMember.linkedInButtonLabel} ↗
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+      <MemberPhotoModal
+        member={inspectedMember}
+        titleId="inspected-member-title"
+        closeLabel={copy.closeBtn}
+        onClose={() => setInspectedMember(null)}
+        footerAction={
+          inspectedMember ? (
+            <a
+              href={inspectedMember.linkedInSearchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0A66C2] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#004182]"
+            >
+              <LinkedInIcon className="h-3.5 w-3.5" />
+              {inspectedMember.linkedInButtonLabel} ↗
+            </a>
+          ) : null
+        }
+      />
     </div>
   );
 }

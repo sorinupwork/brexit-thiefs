@@ -1,9 +1,14 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { UI_TEXT } from "@/lib/i18n-ui";
 
-export function HomeHero() {
+interface HomeHeroProps {
+  liveLedgerSlot?: ReactNode;
+}
+
+export function HomeHero({ liveLedgerSlot }: HomeHeroProps) {
   const { locale } = useLanguage();
   const h = UI_TEXT[locale].home;
 
@@ -30,11 +35,12 @@ export function HomeHero() {
             <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-700">
               {h.introBefore}
               <strong className="font-semibold text-slate-950">
-                Nederlandse Arbeidsinspectie
+                European Parliament (PETI), ELA, Belgium SIOD, Germany Zoll
               </strong>
-              , <strong className="font-semibold text-slate-950">SNCU</strong>,{" "}
-              <strong className="font-semibold text-slate-950">SNF</strong>,{" "}
-              <strong className="font-semibold text-slate-950">Politie</strong>
+              ,{" "}
+              <strong className="font-semibold text-slate-950">
+                Nederlandse Arbeidsinspectie, SNCU, Politie
+              </strong>
               {h.introAnd}
             </p>
 
@@ -182,6 +188,9 @@ export function HomeHero() {
             </div>
           </div>
         </div>
+
+        {/* Server-rendered live DB ledger from real user forms */}
+        {liveLedgerSlot}
       </div>
     </section>
   );

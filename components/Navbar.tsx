@@ -1,16 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useLanguage } from "@/components/LanguageProvider";
+import { usePathname } from "next/navigation";
+import { useLanguage, type Locale } from "@/components/LanguageProvider";
 import { UI_TEXT } from "@/lib/i18n-ui";
 
-interface NavbarProps {
-  activePage?: "home" | "agencies";
-}
+const LOCALES: readonly Locale[] = ["nl", "en"];
 
-export function Navbar({ activePage = "home" }: NavbarProps) {
+export function Navbar() {
+  const pathname = usePathname() ?? "/";
+  const isAgenciesPage =
+    pathname === "/agencies" || pathname.startsWith("/agencies/");
   const { locale, setLocale } = useLanguage();
   const copy = UI_TEXT[locale].navbar;
+
+  const sectionLinks = [
+    { href: "/#agency-spotlight", label: copy.spotlight },
+    { href: "/#community-action", label: copy.community },
+    { href: "/#verify-agency", label: copy.verify },
+    { href: "/#lawyer-matrix", label: copy.lawyer },
+    { href: "/#objection-letter", label: copy.objection },
+    { href: "/#reports", label: copy.reports },
+  ];
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-white/95 backdrop-blur-md">
@@ -46,28 +57,20 @@ export function Navbar({ activePage = "home" }: NavbarProps) {
           aria-label="Primary navigation"
           className="hidden items-center gap-3.5 text-xs font-medium text-slate-600 lg:flex"
         >
-          <Link
-            href="/#agency-spotlight"
-            className="transition-colors hover:text-slate-950"
-          >
-            {copy.spotlight}
-          </Link>
-          <Link
-            href="/#community-action"
-            className="transition-colors hover:text-slate-950"
-          >
-            {copy.community}
-          </Link>
-          <Link
-            href="/#verify-agency"
-            className="transition-colors hover:text-slate-950"
-          >
-            {copy.verify}
-          </Link>
+          {sectionLinks.slice(0, 3).map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="transition-colors hover:text-slate-950"
+            >
+              {item.label}
+            </Link>
+          ))}
           <Link
             href="/agencies"
+            aria-current={isAgenciesPage ? "page" : undefined}
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors ${
-              activePage === "agencies"
+              isAgenciesPage
                 ? "bg-[#0A66C2]/10 font-semibold text-[#0A66C2]"
                 : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"
             }`}
@@ -75,24 +78,15 @@ export function Navbar({ activePage = "home" }: NavbarProps) {
             <span className="h-1.5 w-1.5 rounded-full bg-[#0A66C2]" />
             {copy.agencies}
           </Link>
-          <Link
-            href="/#lawyer-matrix"
-            className="transition-colors hover:text-slate-950"
-          >
-            {copy.lawyer}
-          </Link>
-          <Link
-            href="/#objection-letter"
-            className="transition-colors hover:text-slate-950"
-          >
-            {copy.objection}
-          </Link>
-          <Link
-            href="/#reports"
-            className="transition-colors hover:text-slate-950"
-          >
-            {copy.reports}
-          </Link>
+          {sectionLinks.slice(3).map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="transition-colors hover:text-slate-950"
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -102,36 +96,28 @@ export function Navbar({ activePage = "home" }: NavbarProps) {
             aria-label="Language switcher"
             className="inline-flex items-center rounded-lg border border-slate-300 bg-slate-50 p-0.5 font-mono text-[11px]"
           >
-            <button
-              type="button"
-              onClick={() => setLocale("nl")}
-              aria-pressed={locale === "nl"}
-              className={`rounded-md px-2 py-1 font-semibold transition-colors ${
-                locale === "nl"
-                  ? "bg-slate-900 text-white shadow-2xs"
-                  : "text-slate-600 hover:text-slate-950"
-              }`}
-            >
-              NL
-            </button>
-            <button
-              type="button"
-              onClick={() => setLocale("en")}
-              aria-pressed={locale === "en"}
-              className={`rounded-md px-2 py-1 font-semibold transition-colors ${
-                locale === "en"
-                  ? "bg-slate-900 text-white shadow-2xs"
-                  : "text-slate-600 hover:text-slate-950"
-              }`}
-            >
-              EN
-            </button>
+            {LOCALES.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setLocale(code)}
+                aria-pressed={locale === code}
+                className={`rounded-md px-2 py-1 font-semibold uppercase transition-colors ${
+                  locale === code
+                    ? "bg-slate-900 text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-950"
+                }`}
+              >
+                {code.toUpperCase()}
+              </button>
+            ))}
           </div>
 
           <Link
             href="/agencies"
+            aria-current={isAgenciesPage ? "page" : undefined}
             className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors lg:hidden ${
-              activePage === "agencies"
+              isAgenciesPage
                 ? "border-[#0A66C2] bg-[#0A66C2] text-white"
                 : "border-slate-300 bg-white text-slate-800 hover:border-[#0A66C2] hover:text-[#0A66C2]"
             }`}

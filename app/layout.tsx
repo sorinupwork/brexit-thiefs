@@ -1,6 +1,9 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LanguageProvider } from "@/components/LanguageProvider";
+import { Navbar } from "@/components/Navbar";
+import { SiteFooter } from "@/components/SiteFooter";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,21 +16,84 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://werkrecht-nl.vercel.app";
+
 export const metadata: Metadata = {
-  title:
-    "WerkRecht NL · Rechten voor Uitzendkrachten & Klachtvoorbereiding | Temp-Worker Rights",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default:
+      "WerkRecht NL · Stop Temp-Agency Exploitation, Reclaim Wages & Escalate Across 1 Europe",
+    template: "%s | WerkRecht NL",
+  },
   description:
-    "Onafhankelijk Nederlands documentatie- en transparantieportaal (NL / EN) voor uitzendkrachten bij looninhoudingen, CAO-afwijkingen, huisvestingsgebreken en uitzendbureau-controle.",
+    "Open community worker-protection & evidence platform (NL / EN). Expose corrupt staffing agency practices, collect votes & comments, recover withheld wages, fuel & ADV hours, and submit proof to EU Parliament (PETI), ELA, Belgium SIOD, Germany Zoll, Arbeidsinspectie, SNCU, SNF & Politie.",
+  keywords: [
+    "uitzendbureau klachten",
+    "temp worker rights netherlands",
+    "looninhouding uitzendbureau",
+    "ADV vakantie-uren min",
+    "inlenersbeloning",
+    "SNF housing complaints",
+    "European Labour Authority ELA",
+    "European Parliament PETI petition",
+    "arbeidsinspectie melden",
+    "SNCU melden",
+    "Belgium SIOD social fraud",
+    "Germany Zoll FKS",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: siteUrl,
+    siteName: "WerkRecht NL · 1 Europe Fair Work",
+    title:
+      "WerkRecht NL · Take Back Your Money, Rights & Dignity Across Europe",
+    description:
+      "Community evidence platform exposing corrupt temp-agency teams, collecting real votes, comments & reimbursable euro claims for EU Parliament, ELA, NL, Belgium & Germany authorities.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "WerkRecht NL · Stop Temp-Agency Exploitation in Europe",
+    description:
+      "Expose corrupt staffing agencies, document withheld pay & onboarding lies, vote & comment, and escalate across 1 Europe.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+    },
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="nl"
+      lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#f8f9fa] text-slate-900">
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider>
+          <div id="top" className="flex min-h-screen flex-col">
+            <Suspense
+              fallback={
+                <header className="h-16 border-b border-slate-200/90 bg-white/95" />
+              }
+            >
+              <Navbar />
+            </Suspense>
+            <main className="flex-1">{children}</main>
+            <Suspense fallback={null}>
+              <SiteFooter />
+            </Suspense>
+          </div>
+        </LanguageProvider>
       </body>
     </html>
   );

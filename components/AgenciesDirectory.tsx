@@ -4,19 +4,12 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/components/LanguageProvider";
-import type { AgencyRecord } from "@/lib/agency-team";
+import { getInitials, type AgencyRecord } from "@/lib/agency-team";
 import { getLocalizedAgency } from "@/lib/i18n-data";
 import { UI_TEXT } from "@/lib/i18n-ui";
 
 interface AgenciesDirectoryProps {
   initialAgencies: AgencyRecord[];
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
 export function AgenciesDirectory({ initialAgencies }: AgenciesDirectoryProps) {

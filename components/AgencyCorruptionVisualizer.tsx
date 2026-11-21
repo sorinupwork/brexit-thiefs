@@ -1,17 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { submitVoteAction } from "@/actions/votes";
 import { useLanguage } from "@/components/LanguageProvider";
-import type { AgencyRecord, AgencyTeamMember } from "@/lib/agency-team";
+import { MemberPhotoModal } from "@/components/MemberPhotoModal";
+import {
+  getInitials,
+  type AgencyRecord,
+  type AgencyTeamMember,
+} from "@/lib/agency-team";
 import { getLocalizedAgency } from "@/lib/i18n-data";
 import { UI_TEXT } from "@/lib/i18n-ui";
-import type { PollState } from "@/lib/types";
+import type { PollState, UserVotesState } from "@/lib/types";
+import {
+  mergeUniqueIds,
+  useLocalStorageList,
+  useLocalStorageValue,
+  useSyncedUserVotes,
+  writeLocalStorageList,
+  writeLocalStorageValue,
+} from "@/lib/client-storage";
 
 interface AgencyCorruptionVisualizerProps {
   initialAgencies: AgencyRecord[];
   initialPolls: PollState;
+  initialUserVotes: UserVotesState;
 }
 
 type QuizAnswer = "yes" | "no" | "unsure";
@@ -19,66 +34,10 @@ type QuizAnswer = "yes" | "no" | "unsure";
 const AGENCY_FLAG_EVENT = "werkrecht-agency-flag-storage";
 const QUIZ_TALLY_EVENT = "werkrecht-quiz-tally-storage";
 
-function subscribeStorage(eventName: string) {
-  return (callback: () => void) => {
-    window.addEventListener("storage", callback);
-    window.addEventListener(eventName, callback);
-    return () => {
-      window.removeEventListener("storage", callback);
-      window.removeEventListener(eventName, callback);
-    };
-  };
-}
-
-function useFlaggedAgencySlugs(): string[] {
-  const raw = useSyncExternalStore(
-    subscribeStorage(AGENCY_FLAG_EVENT),
-    () => {
-      try {
-        return window.localStorage.getItem("werkrecht_flagged_agencies") ?? "[]";
-      } catch {
-        return "[]";
-      }
-    },
-    () => "[]"
-  );
-  return useMemo(() => {
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed)
-        ? parsed.filter((x): x is string => typeof x === "string")
-        : [];
-    } catch {
-      return [];
-    }
-  }, [raw]);
-}
-
-function useHasSubmittedQuizTally(): boolean {
-  const raw = useSyncExternalStore(
-    subscribeStorage(QUIZ_TALLY_EVENT),
-    () => {
-      try {
-        return window.localStorage.getItem("werkrecht_quiz_tally_sent") ?? "";
-      } catch {
-        return "";
-      }
-    },
-    () => ""
-  );
-  return raw === "1";
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-}
-
 export function AgencyCorruptionVisualizer({
   initialAgencies,
   initialPolls,
+  initialUserVotes,
 }: AgencyCorruptionVisualizerProps) {
   const { locale } = useLanguage();
   const copy = UI_TEXT[locale].agencySpotlight;
@@ -88,14 +47,29 @@ export function AgencyCorruptionVisualizer({
     initialAgencies[0]?.slug ?? ""
   );
   const [polls, setPolls] = useState<PollState>(initialPolls);
+  const [userVotes, updateUserVotes] = useSyncedUserVotes(initialUserVotes);
   const [flaggingSlug, setFlaggingSlug] = useState<string | null>(null);
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [inspectedMember, setInspectedMember] =
     useState<AgencyTeamMember | null>(null);
   const [answers, setAnswers] = useState<Record<string, QuizAnswer>>({});
 
-  const flaggedSlugs = useFlaggedAgencySlugs();
-  const quizTallySent = useHasSubmittedQuizTally();
+  const localFlaggedSlugs = useLocalStorageList(
+    "werkrecht_flagged_agencies",
+    AGENCY_FLAG_EVENT
+  );
+  const localQuizTallySent =
+    useLocalStorageValue(
+      "werkrecht_quiz_tally_sent",
+      QUIZ_TALLY_EVENT,
+      ""
+    ) === "1";
+
+  const flaggedSlugs = useMemo(
+    () => mergeUniqueIds(userVotes.flaggedAgencies, localFlaggedSlugs),
+    [userVotes.flaggedAgencies, localFlaggedSlugs]
+  );
+  const quizTallySent = userVotes.diagnosticConfirmed || localQuizTallySent;
 
   useEffect(() => {
     function onPollsUpdated(e: Event) {
@@ -107,15 +81,6 @@ export function AgencyCorruptionVisualizer({
       window.removeEventListener("werkrecht-polls-updated", onPollsUpdated);
     };
   }, []);
-
-  useEffect(() => {
-    if (!inspectedMember) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setInspectedMember(null);
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [inspectedMember]);
 
   const localizedAgencies = useMemo(
     () => initialAgencies.map((a) => getLocalizedAgency(a, locale)),
@@ -139,25 +104,22 @@ export function AgencyCorruptionVisualizer({
     if (flaggedSlugs.includes(slug)) return;
     setFlaggingSlug(slug);
     try {
-      const res = await fetch("/api/polls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "agency-flag", targetId: slug }),
+      const result = await submitVoteAction({
+        kind: "agency-flag",
+        targetId: slug,
       });
-      const payload = (await res.json()) as { polls?: PollState };
-      if (res.ok && payload.polls) {
-        setPolls(payload.polls);
-        try {
-          window.localStorage.setItem(
-            "werkrecht_flagged_agencies",
-            JSON.stringify([...flaggedSlugs, slug])
-          );
-        } catch {
-          // Ignore storage error
+      if (result.ok && result.polls) {
+        setPolls(result.polls);
+        if (result.userVotes) {
+          updateUserVotes(result.userVotes);
         }
-        window.dispatchEvent(new Event(AGENCY_FLAG_EVENT));
+        writeLocalStorageList(
+          "werkrecht_flagged_agencies",
+          mergeUniqueIds(flaggedSlugs, [slug]),
+          AGENCY_FLAG_EVENT
+        );
         window.dispatchEvent(
-          new CustomEvent("werkrecht-polls-updated", { detail: payload.polls })
+          new CustomEvent("werkrecht-polls-updated", { detail: result.polls })
         );
       }
     } finally {
@@ -169,25 +131,22 @@ export function AgencyCorruptionVisualizer({
     if (quizTallySent || yesCount === 0) return;
     setSubmittingQuiz(true);
     try {
-      const res = await fetch("/api/polls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "diagnostic-confirm",
-          targetId: selectedAgency?.slug ?? "general",
-        }),
+      const result = await submitVoteAction({
+        kind: "diagnostic-confirm",
+        targetId: selectedAgency?.slug ?? "general",
       });
-      const payload = (await res.json()) as { polls?: PollState };
-      if (res.ok && payload.polls) {
-        setPolls(payload.polls);
-        try {
-          window.localStorage.setItem("werkrecht_quiz_tally_sent", "1");
-        } catch {
-          // Ignore storage error
+      if (result.ok && result.polls) {
+        setPolls(result.polls);
+        if (result.userVotes) {
+          updateUserVotes(result.userVotes);
         }
-        window.dispatchEvent(new Event(QUIZ_TALLY_EVENT));
+        writeLocalStorageValue(
+          "werkrecht_quiz_tally_sent",
+          "1",
+          QUIZ_TALLY_EVENT
+        );
         window.dispatchEvent(
-          new CustomEvent("werkrecht-polls-updated", { detail: payload.polls })
+          new CustomEvent("werkrecht-polls-updated", { detail: result.polls })
         );
       }
     } finally {
@@ -279,28 +238,25 @@ export function AgencyCorruptionVisualizer({
                       type="button"
                       onClick={() => setSelectedSlug(agency.slug)}
                       aria-pressed={active}
-                      className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-semibold transition-all ${
-                        active
+                      className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-semibold transition-all ${active
                           ? "border-slate-950 bg-slate-950 text-white shadow-xs"
                           : "border-slate-300 bg-white text-slate-800 hover:border-slate-900"
-                      }`}
+                        }`}
                     >
                       <span
-                        className={`flex h-6 w-6 items-center justify-center rounded-md font-mono text-[11px] font-bold ${
-                          active
+                        className={`flex h-6 w-6 items-center justify-center rounded-md font-mono text-[11px] font-bold ${active
                             ? "bg-[#D95D24] text-white"
                             : "bg-slate-100 text-slate-800"
-                        }`}
+                          }`}
                       >
                         {agency.monogram}
                       </span>
                       <span>{agency.name}</span>
                       <span
-                        className={`rounded-full px-2 py-0.5 font-mono text-[10px] ${
-                          active
+                        className={`rounded-full px-2 py-0.5 font-mono text-[10px] ${active
                             ? "bg-rose-500/25 text-rose-200"
                             : "bg-rose-50 text-rose-800"
-                        }`}
+                          }`}
                       >
                         🚩 {flags}
                       </span>
@@ -315,11 +271,10 @@ export function AgencyCorruptionVisualizer({
                 type="button"
                 disabled={isAgencyFlagged || flaggingSlug === selectedAgency.slug}
                 onClick={() => handleFlagAgency(selectedAgency.slug)}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors ${
-                  isAgencyFlagged
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors ${isAgencyFlagged
                     ? "border-rose-300 bg-rose-100 text-rose-900"
                     : "border-rose-600 bg-rose-600 text-white hover:bg-rose-700"
-                }`}
+                  }`}
               >
                 🚩{" "}
                 {isAgencyFlagged
@@ -463,11 +418,10 @@ export function AgencyCorruptionVisualizer({
                         )}
 
                         <span
-                          className={`rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold ${
-                            isVerified
+                          className={`rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold ${isVerified
                               ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200"
                               : "bg-slate-100 text-slate-700 ring-1 ring-slate-200"
-                          }`}
+                            }`}
                         >
                           {member.roleBadgeLabel}
                         </span>
@@ -544,13 +498,12 @@ export function AgencyCorruptionVisualizer({
               return (
                 <div
                   key={q.id}
-                  className={`rounded-xl border p-4 transition-colors ${
-                    current === "yes"
+                  className={`rounded-xl border p-4 transition-colors ${current === "yes"
                       ? "border-rose-500/70 bg-rose-950/30"
                       : current === "no"
                         ? "border-emerald-500/40 bg-emerald-950/20"
                         : "border-slate-800 bg-slate-900/70"
-                  }`}
+                    }`}
                 >
                   <p className="text-sm font-semibold leading-snug text-white">
                     {q.question}
@@ -563,11 +516,10 @@ export function AgencyCorruptionVisualizer({
                         setAnswers((prev) => ({ ...prev, [q.id]: "yes" }))
                       }
                       aria-pressed={current === "yes"}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        current === "yes"
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${current === "yes"
                           ? "border-rose-500 bg-rose-600 text-white"
                           : "border-slate-700 bg-slate-950 text-slate-200 hover:border-rose-400"
-                      }`}
+                        }`}
                     >
                       🚩 {copy.yesBtn}
                     </button>
@@ -577,11 +529,10 @@ export function AgencyCorruptionVisualizer({
                         setAnswers((prev) => ({ ...prev, [q.id]: "no" }))
                       }
                       aria-pressed={current === "no"}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        current === "no"
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${current === "no"
                           ? "border-emerald-500 bg-emerald-600 text-white"
                           : "border-slate-700 bg-slate-950 text-slate-200 hover:border-emerald-400"
-                      }`}
+                        }`}
                     >
                       ✓ {copy.noBtn}
                     </button>
@@ -591,11 +542,10 @@ export function AgencyCorruptionVisualizer({
                         setAnswers((prev) => ({ ...prev, [q.id]: "unsure" }))
                       }
                       aria-pressed={current === "unsure"}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        current === "unsure"
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${current === "unsure"
                           ? "border-amber-400 bg-amber-500 text-slate-950"
                           : "border-slate-700 bg-slate-950 text-slate-400 hover:border-amber-400"
-                      }`}
+                        }`}
                     >
                       ? {copy.unsureBtn}
                     </button>
@@ -631,13 +581,12 @@ export function AgencyCorruptionVisualizer({
                     {copy.verdictTitle}
                   </span>
                   <span
-                    className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${
-                      yesCount >= 3
+                    className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${yesCount >= 3
                         ? "bg-rose-600 text-white"
                         : yesCount >= 1
                           ? "bg-amber-500 text-slate-950"
                           : "bg-slate-800 text-slate-300"
-                    }`}
+                      }`}
                   >
                     {yesCount} {copy.confirmedCountSuffix}
                   </span>
@@ -657,11 +606,10 @@ export function AgencyCorruptionVisualizer({
                     type="button"
                     disabled={quizTallySent || submittingQuiz}
                     onClick={handleConfirmQuizToTally}
-                    className={`rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${
-                      quizTallySent
+                    className={`rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${quizTallySent
                         ? "border-emerald-400 bg-emerald-600 text-white"
                         : "border-rose-400 bg-rose-600 text-white hover:bg-rose-700"
-                    }`}
+                      }`}
                   >
                     {quizTallySent ? copy.sentToTallyBtn : copy.sendToTallyBtn}
                   </button>
@@ -686,65 +634,20 @@ export function AgencyCorruptionVisualizer({
         </div>
       </div>
 
-      {/* Photo Inspection Lightbox Modal */}
-      {inspectedMember && inspectedMember.photoPath && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="home-inspected-member-title"
-          onClick={() => setInspectedMember(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+      <MemberPhotoModal
+        member={inspectedMember}
+        titleId="home-inspected-member-title"
+        closeLabel={closeLabel}
+        onClose={() => setInspectedMember(null)}
+        footerAction={
+          <Link
+            href={`/agencies/${selectedAgency.slug}`}
+            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#D95D24]"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-              <div>
-                <h3
-                  id="home-inspected-member-title"
-                  className="text-base font-semibold text-slate-950"
-                >
-                  {inspectedMember.name}
-                </h3>
-                <p className="text-xs text-slate-600">
-                  {inspectedMember.headline}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setInspectedMember(null)}
-                aria-label="Close photo view"
-                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                {closeLabel}
-              </button>
-            </div>
-
-            <div className="relative aspect-square w-full bg-slate-100">
-              <Image
-                src={inspectedMember.photoPath}
-                alt={inspectedMember.photoAlt}
-                fill
-                sizes="(max-width: 640px) 100vw, 512px"
-                className="object-contain"
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-5 py-3.5">
-              <span className="font-mono text-[11px] text-slate-600">
-                {inspectedMember.sourceNote}
-              </span>
-              <Link
-                href={`/agencies/${selectedAgency.slug}`}
-                className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#D95D24]"
-              >
-                {copy.openFullPage}
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+            {copy.openFullPage}
+          </Link>
+        }
+      />
     </section>
   );
 }

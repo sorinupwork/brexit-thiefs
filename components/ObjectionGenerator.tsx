@@ -35,10 +35,10 @@ export function ObjectionGenerator() {
     useState<LetterLang | null>(null);
   const [workerName, setWorkerName] = useState("");
   const [agencyName, setAgencyName] = useState("");
-  const [weeksWorked, setWeeksWorked] = useState("10");
+  const [weeksWorked, setWeeksWorked] = useState("");
   const [deductionDate, setDeductionDate] = useState("");
-  const [wageAmount, setWageAmount] = useState("1200");
-  const [fuelAmount, setFuelAmount] = useState("500");
+  const [wageAmount, setWageAmount] = useState("");
+  const [fuelAmount, setFuelAmount] = useState("");
   const [deadlineDays, setDeadlineDays] = useState("7");
   const [copied, setCopied] = useState(false);
 
@@ -390,71 +390,74 @@ export function ObjectionGenerator() {
                   >
                     {copy.weeksLabel}
                   </label>
-                  <input
-                    id="obj-weeks"
-                    type="number"
-                    min={1}
-                    value={weeksWorked}
-                    onChange={(e) => setWeeksWorked(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900 focus:border-slate-900 focus:outline-none"
-                  />
+                    <input
+                      id="obj-weeks"
+                      type="number"
+                      min={1}
+                      value={weeksWorked}
+                      onChange={(e) => setWeeksWorked(e.target.value)}
+                      placeholder="10"
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900 focus:border-slate-900 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="obj-date"
+                      className="block text-xs font-semibold text-slate-800"
+                    >
+                      {copy.payslipDateLabel}
+                    </label>
+                    <input
+                      id="obj-date"
+                      type="text"
+                      value={deductionDate}
+                      onChange={(e) => setDeductionDate(e.target.value)}
+                      placeholder={copy.payslipDatePlaceholder}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900 focus:border-slate-900 focus:outline-none"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label
-                    htmlFor="obj-date"
-                    className="block text-xs font-semibold text-slate-800"
-                  >
-                    {copy.payslipDateLabel}
-                  </label>
-                  <input
-                    id="obj-date"
-                    type="text"
-                    value={deductionDate}
-                    onChange={(e) => setDeductionDate(e.target.value)}
-                    placeholder={copy.payslipDatePlaceholder}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900 focus:border-slate-900 focus:outline-none"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                {disputeType !== "fuel-clawback" && (
-                  <div>
-                    <label
-                      htmlFor="obj-wage"
-                      className="block text-xs font-semibold text-slate-800"
-                    >
-                      {copy.wageEurLabel}
-                    </label>
-                    <input
-                      id="obj-wage"
-                      type="number"
-                      min={0}
-                      value={wageAmount}
-                      onChange={(e) => setWageAmount(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-2 text-xs text-slate-900 focus:border-slate-900 focus:outline-none"
-                    />
-                  </div>
-                )}
-                {(disputeType === "combined" ||
-                  disputeType === "fuel-clawback") && (
-                  <div>
-                    <label
-                      htmlFor="obj-fuel"
-                      className="block text-xs font-semibold text-slate-800"
-                    >
-                      {copy.fuelEurLabel}
-                    </label>
-                    <input
-                      id="obj-fuel"
-                      type="number"
-                      min={0}
-                      value={fuelAmount}
-                      onChange={(e) => setFuelAmount(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-2 text-xs text-slate-900 focus:border-slate-900 focus:outline-none"
-                    />
-                  </div>
-                )}
+                <div className="grid grid-cols-3 gap-3">
+                  {disputeType !== "fuel-clawback" && (
+                    <div>
+                      <label
+                        htmlFor="obj-wage"
+                        className="block text-xs font-semibold text-slate-800"
+                      >
+                        {copy.wageEurLabel}
+                      </label>
+                      <input
+                        id="obj-wage"
+                        type="number"
+                        min={0}
+                        value={wageAmount}
+                        onChange={(e) => setWageAmount(e.target.value)}
+                        placeholder="0"
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-2 text-xs text-slate-900 focus:border-slate-900 focus:outline-none"
+                      />
+                    </div>
+                  )}
+                  {(disputeType === "combined" ||
+                    disputeType === "fuel-clawback") && (
+                    <div>
+                      <label
+                        htmlFor="obj-fuel"
+                        className="block text-xs font-semibold text-slate-800"
+                      >
+                        {copy.fuelEurLabel}
+                      </label>
+                      <input
+                        id="obj-fuel"
+                        type="number"
+                        min={0}
+                        value={fuelAmount}
+                        onChange={(e) => setFuelAmount(e.target.value)}
+                        placeholder="0"
+                        className="mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-2 text-xs text-slate-900 focus:border-slate-900 focus:outline-none"
+                      />
+                    </div>
+                  )}
                 <div>
                   <label
                     htmlFor="obj-days"

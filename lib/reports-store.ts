@@ -1,8 +1,18 @@
-import { promises as fs } from "fs";
-import path from "path";
 import crypto from "crypto";
-import { CATEGORY_META, SAMPLE_REPORTS } from "./data";
+import {
+  collection,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  runTransaction,
+} from "firebase/firestore";
+import { db } from "@/firebase";
+import { CATEGORY_META } from "./data";
+import { buildPrivateEvidenceUrl } from "./storage";
 import type {
+  AuthorityId,
+  EvidenceAttachment,
   EvidenceItemType,
   IssueCategory,
   LifecycleStageId,
@@ -10,8 +20,9 @@ import type {
   WorkerReport,
 } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const REPORTS_FILE = path.join(DATA_DIR, "reports.json");
+const REPORTS_COLLECTION = "reports";
+const COUNTERS_COLLECTION = "counters";
+const REPORTS_COUNTER_DOC = "reports";
 
 const VALID_CATEGORIES = new Set<IssueCategory>([
   "wage-deduction",
@@ -41,36 +52,126 @@ const VALID_EVIDENCE = new Set<EvidenceItemType>([
   "hours-log",
 ]);
 
-async function ensureStoreFile(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  try {
-    await fs.access(REPORTS_FILE);
-  } catch {
-    await fs.writeFile(
-      REPORTS_FILE,
-      JSON.stringify(SAMPLE_REPORTS, null, 2),
-      "utf-8"
-    );
+function mapAttachments(
+  raw: unknown,
+  reportId: string
+): EvidenceAttachment[] {
+  if (!Array.isArray(raw)) return [];
+  const clean: EvidenceAttachment[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    const blobPathname =
+      typeof rec.blobPathname === "string" &&
+      rec.blobPathname.startsWith("evidence/")
+        ? rec.blobPathname
+        : undefined;
+    const blobUrl = blobPathname
+      ? buildPrivateEvidenceUrl(blobPathname)
+      : typeof rec.blobUrl === "string"
+        ? rec.blobUrl
+        : "";
+    if (!blobUrl) continue;
+
+    clean.push({
+      id: typeof rec.id === "string" ? rec.id : crypto.randomUUID(),
+      reportId,
+      type: (VALID_EVIDENCE.has(rec.type as EvidenceItemType)
+        ? rec.type
+        : "payslips") as EvidenceItemType,
+      fileName: String(rec.fileName ?? "evidence-file"),
+      mimeType: String(
+        rec.mimeType ?? "application/pdf"
+      ) as EvidenceAttachment["mimeType"],
+      sizeBytes: typeof rec.sizeBytes === "number" ? rec.sizeBytes : 0,
+      ...(blobPathname ? { blobPathname } : {}),
+      blobUrl,
+      uploadedAt:
+        typeof rec.uploadedAt === "string"
+          ? rec.uploadedAt
+          : new Date(0).toISOString(),
+      redactedForPii: Boolean(rec.redactedForPii ?? true),
+    });
   }
+  return clean;
+}
+
+function mapFirestoreReport(
+  id: string,
+  data: Record<string, unknown>
+): WorkerReport {
+  const category = (VALID_CATEGORIES.has(data.category as IssueCategory)
+    ? data.category
+    : "wage-deduction") as IssueCategory;
+  const stage = (VALID_STAGES.has(data.stage as LifecycleStageId)
+    ? data.stage
+    : "payroll") as LifecycleStageId;
+  const agencyName =
+    typeof data.agencyName === "string" && data.agencyName.trim()
+      ? data.agencyName
+      : undefined;
+  const originCorridor =
+    typeof data.originCorridor === "string" && data.originCorridor.trim()
+      ? data.originCorridor
+      : undefined;
+
+  return {
+    id,
+    caseNumber: String(data.caseNumber ?? "WR-2026-000"),
+    title: String(data.title ?? ""),
+    category,
+    stage,
+    region: String(data.region ?? "Netherlands"),
+    ...(agencyName ? { agencyName } : {}),
+    ...(originCorridor ? { originCorridor } : {}),
+    weeksWorked:
+      typeof data.weeksWorked === "number" ? data.weeksWorked : null,
+    disputedAmountEur:
+      typeof data.disputedAmountEur === "number"
+        ? data.disputedAmountEur
+        : null,
+    authorAlias: String(data.authorAlias ?? "Anonymous Worker"),
+    summary: String(data.summary ?? ""),
+    timelineNotes: String(data.timelineNotes ?? ""),
+    evidenceHeld: Array.isArray(data.evidenceHeld)
+      ? (data.evidenceHeld as EvidenceItemType[])
+      : [],
+    recommendedAuthorities: Array.isArray(data.recommendedAuthorities)
+      ? (data.recommendedAuthorities as AuthorityId[])
+      : CATEGORY_META[category].authorities,
+    attachments: mapAttachments(data.attachments, id),
+    createdAt:
+      typeof data.createdAt === "string"
+        ? data.createdAt
+        : new Date(0).toISOString(),
+    isSample: Boolean(data.isSample),
+  };
 }
 
 export async function readReports(): Promise<WorkerReport[]> {
   try {
-    await ensureStoreFile();
-    const raw = await fs.readFile(REPORTS_FILE, "utf-8");
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return SAMPLE_REPORTS;
-    }
-    return parsed as WorkerReport[];
-  } catch {
-    return SAMPLE_REPORTS;
+    const q = query(
+      collection(db, REPORTS_COLLECTION),
+      orderBy("createdAtMs", "desc")
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((docSnap) =>
+      mapFirestoreReport(docSnap.id, docSnap.data())
+    );
+  } catch (err) {
+    console.error("[reports-store] Firestore readReports failed:", err);
+    return [];
   }
 }
 
 export function validateReportInput(
   body: unknown
-): { ok: true; data: ReportSubmissionInput } | { ok: false; error: string } {
+):
+  | {
+      ok: true;
+      data: ReportSubmissionInput & { fallbackAttachments?: EvidenceAttachment[] };
+    }
+  | { ok: false; error: string } {
   if (!body || typeof body !== "object") {
     return { ok: false, error: "Invalid JSON payload." };
   }
@@ -165,6 +266,27 @@ export function validateReportInput(
       typeof item === "string" && VALID_EVIDENCE.has(item as EvidenceItemType)
   );
 
+  const rawAttachmentIds = Array.isArray(record.attachmentIds)
+    ? record.attachmentIds
+    : [];
+  const attachmentIds = rawAttachmentIds
+    .filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+    .slice(0, 5);
+
+  const fallbackAttachments: EvidenceAttachment[] = Array.isArray(
+    record.attachments
+  )
+    ? record.attachments
+        .filter(
+          (att): att is EvidenceAttachment =>
+            Boolean(att) &&
+            typeof att === "object" &&
+            typeof (att as EvidenceAttachment).blobPathname === "string" &&
+            (att as EvidenceAttachment).blobPathname!.startsWith("evidence/")
+        )
+        .slice(0, 5)
+    : [];
+
   return {
     ok: true,
     data: {
@@ -180,40 +302,58 @@ export function validateReportInput(
       summary,
       timelineNotes,
       evidenceHeld,
+      attachmentIds,
+      fallbackAttachments,
     },
   };
 }
 
 export async function appendReport(
-  input: ReportSubmissionInput
+  input: ReportSubmissionInput & { fallbackAttachments?: EvidenceAttachment[] }
 ): Promise<WorkerReport> {
-  const existing = await readReports();
-  const nextNumber = existing.length + 1;
-  const year = new Date().getFullYear();
+  const nowMs = Date.now();
+  const createdAt = new Date(nowMs).toISOString();
+  const year = new Date(nowMs).getFullYear();
+  const authorities = CATEGORY_META[input.category].authorities;
+  const reportId = crypto.randomUUID();
+  const attachments = mapAttachments(input.fallbackAttachments ?? [], reportId);
 
-  const report: WorkerReport = {
-    id: crypto.randomUUID(),
-    caseNumber: `WR-${year}-${String(nextNumber).padStart(3, "0")}`,
-    title: input.title,
-    category: input.category,
-    stage: input.stage,
-    region: input.region,
-    ...(input.agencyName ? { agencyName: input.agencyName } : {}),
-    ...(input.originCorridor ? { originCorridor: input.originCorridor } : {}),
-    weeksWorked: input.weeksWorked,
-    disputedAmountEur: input.disputedAmountEur,
-    authorAlias: input.authorAlias,
-    summary: input.summary,
-    timelineNotes: input.timelineNotes,
-    evidenceHeld: input.evidenceHeld,
-    recommendedAuthorities: CATEGORY_META[input.category].authorities,
-    attachments: [],
-    createdAt: new Date().toISOString(),
-    isSample: false,
-  };
+  const counterRef = doc(db, COUNTERS_COLLECTION, REPORTS_COUNTER_DOC);
+  const reportRef = doc(db, REPORTS_COLLECTION, reportId);
 
-  const updated = [report, ...existing];
-  await ensureStoreFile();
-  await fs.writeFile(REPORTS_FILE, JSON.stringify(updated, null, 2), "utf-8");
-  return report;
+  return runTransaction(db, async (tx) => {
+    const counterSnap = await tx.get(counterRef);
+    const prevSeq =
+      counterSnap.exists() && typeof counterSnap.data().seq === "number"
+        ? counterSnap.data().seq
+        : 0;
+    const nextSeq = prevSeq + 1;
+    const caseNumber = `WR-${year}-${String(nextSeq).padStart(3, "0")}`;
+
+    const report: WorkerReport = {
+      id: reportId,
+      caseNumber,
+      title: input.title,
+      category: input.category,
+      stage: input.stage,
+      region: input.region,
+      ...(input.agencyName ? { agencyName: input.agencyName } : {}),
+      ...(input.originCorridor ? { originCorridor: input.originCorridor } : {}),
+      weeksWorked: input.weeksWorked,
+      disputedAmountEur: input.disputedAmountEur,
+      authorAlias: input.authorAlias,
+      summary: input.summary,
+      timelineNotes: input.timelineNotes,
+      evidenceHeld: input.evidenceHeld,
+      recommendedAuthorities: authorities,
+      attachments,
+      createdAt,
+      isSample: false,
+    };
+
+    tx.set(counterRef, { seq: nextSeq });
+    tx.set(reportRef, { ...report, createdAtMs: nowMs });
+
+    return report;
+  });
 }

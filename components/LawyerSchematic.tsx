@@ -1,7 +1,10 @@
 "use client";
 
 import { useLanguage } from "@/components/LanguageProvider";
-import { getLocalizedAuthorities } from "@/lib/i18n-data";
+import {
+  getLocalizedAuthorities,
+  getLocalizedBrusselsChannels,
+} from "@/lib/i18n-data";
 import { ESCALATION_ROWS_BY_LOCALE, UI_TEXT } from "@/lib/i18n-ui";
 
 export function LawyerSchematic() {
@@ -9,6 +12,7 @@ export function LawyerSchematic() {
   const copy = UI_TEXT[locale].lawyer;
   const rows = ESCALATION_ROWS_BY_LOCALE[locale];
   const authorities = getLocalizedAuthorities(locale);
+  const euChannels = getLocalizedBrusselsChannels(locale);
 
   return (
     <>
@@ -137,6 +141,29 @@ export function LawyerSchematic() {
             <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
               {copy.authIntro}
             </p>
+          </div>
+
+          {/* Warning on Passive / Fee-Charging Intermediaries & Why 1-Europe Escalation Matters */}
+          <div className="mt-6 rounded-2xl border-2 border-amber-300 bg-amber-50/90 p-5 shadow-2xs">
+            <span className="block font-mono text-[11px] font-bold uppercase tracking-wider text-amber-950">
+              {copy.cautionBannerTitle}
+            </span>
+            <p className="mt-1.5 text-xs leading-relaxed text-amber-950 sm:text-sm">
+              {copy.cautionBannerBody}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {euChannels.map((ch) => (
+                <a
+                  key={ch.id}
+                  href={ch.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded-lg border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:border-[#D95D24] hover:bg-[#D95D24]"
+                >
+                  {ch.actionLabel}
+                </a>
+              ))}
+            </div>
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">

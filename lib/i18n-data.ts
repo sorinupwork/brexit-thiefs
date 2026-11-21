@@ -421,40 +421,58 @@ export function getLocalizedBrusselsChannels(
   if (locale === "en") return BRUSSELS_CHANNELS;
   return [
     {
+      id: "ep-petitions",
+      name: "Europees Parlement Verzoekschriften (PETI)",
+      shortTag: "1 Europa · Verbod Vacatures & Marktuitzetting",
+      scope:
+        "Dien collectieve petities in bij het Europees Parlement voor een EU-breed verbod op misleidende vacatures en intrekking van grensoverschrijdende vergunningen van foute bureaus.",
+      url: "https://www.europarl.europa.eu/petitions/en/home",
+      actionLabel: "Petitie EU-Parlement (PETI) ↗",
+    },
+    {
       id: "ela",
       name: "Europese Arbeidsautoriteit (ELA)",
-      shortTag: "EU-Mobiliteit & Gezamenlijke Inspecties",
+      shortTag: "EU-Brede Gezamenlijke Inspecties",
       scope:
-        "Ondersteunt grensoverschrijdende arbeidsinspecties, aanpak van sociale dumping en handhaving van eerlijke arbeidsmobiliteit in de EU.",
+        "Coördineert grensoverschrijdende inspecties tussen NL, België, Duitsland, Polen, Roemenië & Hongarije wanneer nationale aanpak faalt.",
       url: "https://www.ela.europa.eu/",
-      actionLabel: "Bekijk ELA (Brussel / EU) ↗",
+      actionLabel: "Bezoek ELA (EU) ↗",
     },
     {
       id: "eu-commission",
       name: "Europese Commissie · Klacht Schending EU-Recht",
       shortTag: "Brussel Inbreukprocedure",
       scope:
-        "Officieel loket in Brussel om structureel falen van nationale handhaving of schending van EU-arbeidsrichtlijnen door een lidstaat te melden.",
+        "Officieel loket in Brussel om structureel falen van nationale instanties, belangenverstrengeling of schending van EU-arbeidsrichtlijnen te melden.",
       url: "https://commission.europa.eu/about-european-commission/contact/problems-and-complaints/complaints-about-breaches-eu-law-member-countries_en",
       actionLabel: "Meld Schending EU-Recht ↗",
     },
     {
       id: "solvit",
       name: "SOLVIT (EU Internemarkt-netwerk)",
-      shortTag: "Grensoverschrijdende Expat-Rechten",
+      shortTag: "Grensoverschrijdende Rechten",
       scope:
-        "Gratis EU-netwerk dat grensoverschrijdende geschillen oplost wanneer overheidsinstanties EU-werknemersrechten niet juist toepassen.",
+        "Gratis EU-netwerk dat ingrijpt wanneer nationale overheden EU-werknemersrechten en gelijke behandeling niet handhaven.",
       url: "https://solvit.ec.europa.eu/",
       actionLabel: "Open SOLVIT EU ↗",
     },
     {
-      id: "ep-petitions",
-      name: "Europees Parlement Verzoekschriften (PETI)",
-      shortTag: "Politiek Toezicht Brussel",
+      id: "germany-zoll",
+      name: "Duitsland · Zoll (FKS Arbeidshandhaving)",
+      shortTag: "DE Grensoverschrijdende Looncontrole",
       scope:
-        "Dien formele collectieve petities in bij het Europees Parlement over wijdverbreide misstanden of hiaten in de handhaving door lidstaten.",
-      url: "https://www.europarl.europa.eu/petitions/en/home",
-      actionLabel: "Petitie naar Brussel (PETI) ↗",
+        "Duitse federale arbeidsinspectie (Finanzkontrolle Schwarzarbeit) bij grensoverschrijdend werk, minimumloonfraude en onwettige inhoudingen langs DE/NL.",
+      url: "https://www.zoll.de/EN/Businesses/Work/work_node.html",
+      actionLabel: "Duitsland Zoll (FKS) ↗",
+    },
+    {
+      id: "belgium-siod",
+      name: "België · SIOD / Meldpunt Sociale Fraude",
+      shortTag: "BE Grensoverschrijdend Fraudemeldpunt",
+      scope:
+        "Officieel Belgisch meldpunt (Sociale Inlichtingen- en Opsporingsdienst) voor sociale dumping, loondiefstal en uitbuiting over de BE/NL-grens.",
+      url: "https://www.meldpuntsocialefraude.belgie.be/",
+      actionLabel: "België Fraudemeldpunt ↗",
     },
   ];
 }
@@ -479,6 +497,15 @@ export function formatLocalizedLegalBrief(
           .map((e) => `  - [x] ${getLocalizedEvidenceLabel(e, "nl")}`)
           .join("\n")
       : "  - (Nog geen bewijsstukken aangevinkt)";
+  const attachmentList =
+    localizedReport.attachments.length > 0
+      ? localizedReport.attachments
+          .map(
+            (att) =>
+              `  - [BESTAND] ${att.fileName} (${getLocalizedEvidenceLabel(att.type, "nl")}) -> Kluis: ${att.blobUrl}`
+          )
+          .join("\n")
+      : "  - (Geen bestanden geüpload)";
 
   return [
     "================================================================",
@@ -510,6 +537,10 @@ export function formatLocalizedLegalBrief(
     "3. BESCHIKBAAR BEWIJSMATERIAAL (VOOR DIRECTE INDIENING)",
     "----------------------------------------------------------------",
     evidenceList,
+    "",
+    "3B. PRIVE BEWIJSKLUIS BESTANDEN",
+    "----------------------------------------------------------------",
+    attachmentList,
     "",
     "4. BEVOEGDE NEDERLANDSE TOEZICHTHOUDERS",
     "----------------------------------------------------------------",

@@ -1,14 +1,17 @@
-import { promises as fs } from "fs";
-import path from "path";
-import type {
-  BrusselsActionOptionId,
-  InstituteActionOptionId,
-  PollState,
-  RedFlagPollOptionId,
+import { doc, getDoc, runTransaction } from "firebase/firestore";
+import { db } from "@/firebase";
+import {
+  EMPTY_USER_VOTES,
+  type BrusselsActionOptionId,
+  type InstituteActionOptionId,
+  type PollState,
+  type RedFlagPollOptionId,
+  type UserVotesState,
 } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const POLLS_FILE = path.join(DATA_DIR, "polls.json");
+const POLLS_COLLECTION = "poll_metrics";
+const POLLS_SUMMARY_DOC = "summary";
+export const VOTE_RECORDS_COLLECTION = "vote_records";
 
 export const DEFAULT_POLL_STATE: PollState = {
   redFlagVotes: {
@@ -68,51 +71,181 @@ const VALID_INSTITUTE_ACTIONS = new Set<InstituteActionOptionId>([
   "collective-lawsuit",
 ]);
 
-async function ensurePollsFile(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  try {
-    await fs.access(POLLS_FILE);
-  } catch {
-    await fs.writeFile(
-      POLLS_FILE,
-      JSON.stringify(DEFAULT_POLL_STATE, null, 2),
-      "utf-8"
-    );
+function coerceNumberRecord(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const result: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "number" && Number.isFinite(v)) {
+      result[k] = v;
+    }
   }
+  return result;
+}
+
+function normalizePollState(raw?: Record<string, unknown>): PollState {
+  if (!raw) return DEFAULT_POLL_STATE;
+  return {
+    redFlagVotes: {
+      ...DEFAULT_POLL_STATE.redFlagVotes,
+      ...(coerceNumberRecord(raw.redFlagVotes) as Partial<
+        Record<RedFlagPollOptionId, number>
+      >),
+    },
+    brusselsActionVotes: {
+      ...DEFAULT_POLL_STATE.brusselsActionVotes,
+      ...(coerceNumberRecord(raw.brusselsActionVotes) as Partial<
+        Record<BrusselsActionOptionId, number>
+      >),
+    },
+    instituteActionVotes: {
+      ...DEFAULT_POLL_STATE.instituteActionVotes,
+      ...(coerceNumberRecord(raw.instituteActionVotes) as Partial<
+        Record<InstituteActionOptionId, number>
+      >),
+    },
+    reportFlags: coerceNumberRecord(raw.reportFlags),
+    agencyFlags: coerceNumberRecord(raw.agencyFlags),
+    diagnosticConfirmations:
+      typeof raw.diagnosticConfirmations === "number" &&
+      Number.isFinite(raw.diagnosticConfirmations)
+        ? raw.diagnosticConfirmations
+        : 0,
+    updatedAt:
+      typeof raw.updatedAt === "string"
+        ? raw.updatedAt
+        : DEFAULT_POLL_STATE.updatedAt,
+  };
+}
+
+export function parseVoterVotes(raw?: Record<string, unknown>): Record<string, string> {
+  const votesRaw = raw?.votes;
+  if (!votesRaw || typeof votesRaw !== "object" || Array.isArray(votesRaw)) {
+    return {};
+  }
+  const parsed: Record<string, string> = {};
+  for (const [key, val] of Object.entries(votesRaw as Record<string, unknown>)) {
+    if (typeof val === "string") {
+      parsed[key] = val;
+    }
+  }
+  return parsed;
+}
+
+export function getScopeKeyForVote(vote: PollVoteInput): string {
+  switch (vote.kind) {
+    case "red-flag":
+      return "red-flag";
+    case "institute-action":
+      return "institute-action";
+    case "brussels-action":
+      return "brussels-action";
+    case "diagnostic-confirm":
+      return "diagnostic-confirm";
+    case "agency-flag":
+      return `agency-flag:${vote.targetId}`;
+    case "report-flag":
+      return `report-flag:${vote.targetId}`;
+  }
+}
+
+function applyPollIncrement(
+  current: PollState,
+  vote: PollVoteInput,
+  updatedAt: string
+): PollState {
+  const next: PollState = {
+    redFlagVotes: { ...current.redFlagVotes },
+    brusselsActionVotes: { ...current.brusselsActionVotes },
+    instituteActionVotes: { ...current.instituteActionVotes },
+    reportFlags: { ...current.reportFlags },
+    agencyFlags: { ...current.agencyFlags },
+    diagnosticConfirmations: current.diagnosticConfirmations,
+    updatedAt,
+  };
+
+  if (vote.kind === "red-flag") {
+    next.redFlagVotes[vote.targetId] =
+      (next.redFlagVotes[vote.targetId] ?? 0) + 1;
+  } else if (vote.kind === "brussels-action") {
+    next.brusselsActionVotes[vote.targetId] =
+      (next.brusselsActionVotes[vote.targetId] ?? 0) + 1;
+  } else if (vote.kind === "institute-action") {
+    next.instituteActionVotes[vote.targetId] =
+      (next.instituteActionVotes[vote.targetId] ?? 0) + 1;
+  } else if (vote.kind === "agency-flag") {
+    next.agencyFlags[vote.targetId] =
+      (next.agencyFlags[vote.targetId] ?? 0) + 1;
+  } else if (vote.kind === "diagnostic-confirm") {
+    next.diagnosticConfirmations = (next.diagnosticConfirmations ?? 0) + 1;
+  } else {
+    next.reportFlags[vote.targetId] =
+      (next.reportFlags[vote.targetId] ?? 0) + 1;
+  }
+
+  return next;
 }
 
 export async function readPolls(): Promise<PollState> {
   try {
-    await ensurePollsFile();
-    const raw = await fs.readFile(POLLS_FILE, "utf-8");
-    const parsed = JSON.parse(raw) as Partial<PollState>;
-    return {
-      redFlagVotes: {
-        ...DEFAULT_POLL_STATE.redFlagVotes,
-        ...(parsed.redFlagVotes ?? {}),
-      },
-      brusselsActionVotes: {
-        ...DEFAULT_POLL_STATE.brusselsActionVotes,
-        ...(parsed.brusselsActionVotes ?? {}),
-      },
-      instituteActionVotes: {
-        ...DEFAULT_POLL_STATE.instituteActionVotes,
-        ...(parsed.instituteActionVotes ?? {}),
-      },
-      reportFlags: { ...(parsed.reportFlags ?? {}) },
-      agencyFlags: { ...(parsed.agencyFlags ?? {}) },
-      diagnosticConfirmations:
-        typeof parsed.diagnosticConfirmations === "number" &&
-        Number.isFinite(parsed.diagnosticConfirmations)
-          ? parsed.diagnosticConfirmations
-          : 0,
-      updatedAt:
-        typeof parsed.updatedAt === "string"
-          ? parsed.updatedAt
-          : DEFAULT_POLL_STATE.updatedAt,
-    };
-  } catch {
+    const snap = await getDoc(doc(db, POLLS_COLLECTION, POLLS_SUMMARY_DOC));
+    return normalizePollState(snap.exists() ? snap.data() : undefined);
+  } catch (err) {
+    console.error("[polls-store] Firestore readPolls failed:", err);
     return DEFAULT_POLL_STATE;
+  }
+}
+
+export async function readUserVotes(
+  voterId: string | null
+): Promise<UserVotesState> {
+  if (!voterId) return EMPTY_USER_VOTES;
+
+  try {
+    const snap = await getDoc(doc(db, VOTE_RECORDS_COLLECTION, voterId));
+    if (!snap.exists()) return EMPTY_USER_VOTES;
+
+    const voterScopes = parseVoterVotes(snap.data());
+    const userVotes: UserVotesState = {
+      redFlagVote: null,
+      instituteActionVote: null,
+      brusselsActionVote: null,
+      flaggedAgencies: [],
+      flaggedReports: [],
+      confirmedComments: [],
+      diagnosticConfirmed: false,
+    };
+
+    for (const [scopeKey, targetId] of Object.entries(voterScopes)) {
+      if (
+        scopeKey === "red-flag" &&
+        VALID_RED_FLAG_OPTIONS.has(targetId as RedFlagPollOptionId)
+      ) {
+        userVotes.redFlagVote = targetId as RedFlagPollOptionId;
+      } else if (
+        scopeKey === "institute-action" &&
+        VALID_INSTITUTE_ACTIONS.has(targetId as InstituteActionOptionId)
+      ) {
+        userVotes.instituteActionVote = targetId as InstituteActionOptionId;
+      } else if (
+        scopeKey === "brussels-action" &&
+        VALID_BRUSSELS_ACTIONS.has(targetId as BrusselsActionOptionId)
+      ) {
+        userVotes.brusselsActionVote = targetId as BrusselsActionOptionId;
+      } else if (scopeKey === "diagnostic-confirm") {
+        userVotes.diagnosticConfirmed = true;
+      } else if (scopeKey.startsWith("agency-flag:")) {
+        userVotes.flaggedAgencies.push(targetId);
+      } else if (scopeKey.startsWith("report-flag:")) {
+        userVotes.flaggedReports.push(targetId);
+      } else if (scopeKey.startsWith("comment-confirm:")) {
+        userVotes.confirmedComments.push(targetId);
+      }
+    }
+
+    return userVotes;
+  } catch (err) {
+    console.error("[polls-store] Firestore readUserVotes failed:", err);
+    return EMPTY_USER_VOTES;
   }
 }
 
@@ -177,61 +310,56 @@ export function validatePollVote(
   }
 
   if (kind === "report-flag") {
-    return {
-      ok: true,
-      data: { kind: "report-flag", targetId },
-    };
+    return { ok: true, data: { kind: "report-flag", targetId } };
   }
 
   if (kind === "agency-flag") {
-    return {
-      ok: true,
-      data: { kind: "agency-flag", targetId },
-    };
+    return { ok: true, data: { kind: "agency-flag", targetId } };
   }
 
   if (kind === "diagnostic-confirm") {
-    return {
-      ok: true,
-      data: { kind: "diagnostic-confirm", targetId },
-    };
+    return { ok: true, data: { kind: "diagnostic-confirm", targetId } };
   }
 
   return { ok: false, error: "Unknown vote kind." };
 }
 
-export async function recordPollVote(vote: PollVoteInput): Promise<PollState> {
-  const current = await readPolls();
-  const next: PollState = {
-    redFlagVotes: { ...current.redFlagVotes },
-    brusselsActionVotes: { ...current.brusselsActionVotes },
-    instituteActionVotes: { ...current.instituteActionVotes },
-    reportFlags: { ...current.reportFlags },
-    agencyFlags: { ...current.agencyFlags },
-    diagnosticConfirmations: current.diagnosticConfirmations,
-    updatedAt: new Date().toISOString(),
-  };
+export async function recordPollVote(
+  vote: PollVoteInput,
+  voterId?: string | null
+): Promise<{ polls: PollState; alreadyVoted: boolean }> {
+  const summaryRef = doc(db, POLLS_COLLECTION, POLLS_SUMMARY_DOC);
+  const voterRef = voterId ? doc(db, VOTE_RECORDS_COLLECTION, voterId) : null;
+  const scopeKey = getScopeKeyForVote(vote);
 
-  if (vote.kind === "red-flag") {
-    next.redFlagVotes[vote.targetId] =
-      (next.redFlagVotes[vote.targetId] ?? 0) + 1;
-  } else if (vote.kind === "brussels-action") {
-    next.brusselsActionVotes[vote.targetId] =
-      (next.brusselsActionVotes[vote.targetId] ?? 0) + 1;
-  } else if (vote.kind === "institute-action") {
-    next.instituteActionVotes[vote.targetId] =
-      (next.instituteActionVotes[vote.targetId] ?? 0) + 1;
-  } else if (vote.kind === "agency-flag") {
-    next.agencyFlags[vote.targetId] =
-      (next.agencyFlags[vote.targetId] ?? 0) + 1;
-  } else if (vote.kind === "diagnostic-confirm") {
-    next.diagnosticConfirmations = (next.diagnosticConfirmations ?? 0) + 1;
-  } else {
-    next.reportFlags[vote.targetId] =
-      (next.reportFlags[vote.targetId] ?? 0) + 1;
-  }
+  return runTransaction(db, async (tx) => {
+    const [summarySnap, voterSnap] = await Promise.all([
+      tx.get(summaryRef),
+      voterRef ? tx.get(voterRef) : Promise.resolve(null),
+    ]);
 
-  await ensurePollsFile();
-  await fs.writeFile(POLLS_FILE, JSON.stringify(next, null, 2), "utf-8");
-  return next;
+    const currentPolls = normalizePollState(
+      summarySnap.exists() ? summarySnap.data() : undefined
+    );
+    const voterVotes = voterSnap?.exists()
+      ? parseVoterVotes(voterSnap.data())
+      : {};
+
+    if (voterRef && typeof voterVotes[scopeKey] === "string") {
+      return { polls: currentPolls, alreadyVoted: true };
+    }
+
+    const updatedAt = new Date().toISOString();
+    const nextPolls = applyPollIncrement(currentPolls, vote, updatedAt);
+
+    if (voterRef) {
+      tx.set(voterRef, {
+        votes: { ...voterVotes, [scopeKey]: vote.targetId },
+        updatedAt,
+      });
+    }
+    tx.set(summaryRef, nextPolls);
+
+    return { polls: nextPolls, alreadyVoted: false };
+  });
 }

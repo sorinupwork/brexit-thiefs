@@ -42,6 +42,7 @@ export interface EvidenceAttachment {
   fileName: string;
   mimeType: "application/pdf" | "image/jpeg" | "image/png" | "image/webp";
   sizeBytes: number;
+  blobPathname?: string;
   blobUrl: string;
   uploadedAt: string;
   redactedForPii: boolean;
@@ -81,6 +82,7 @@ export interface ReportSubmissionInput {
   summary: string;
   timelineNotes: string;
   evidenceHeld: EvidenceItemType[];
+  attachmentIds?: string[];
 }
 
 export type RedFlagPollOptionId =
@@ -116,6 +118,26 @@ export interface PollState {
   diagnosticConfirmations: number;
   updatedAt: string;
 }
+
+export interface UserVotesState {
+  redFlagVote: RedFlagPollOptionId | null;
+  instituteActionVote: InstituteActionOptionId | null;
+  brusselsActionVote: BrusselsActionOptionId | null;
+  flaggedAgencies: string[];
+  flaggedReports: string[];
+  confirmedComments: string[];
+  diagnosticConfirmed: boolean;
+}
+
+export const EMPTY_USER_VOTES: UserVotesState = {
+  redFlagVote: null,
+  instituteActionVote: null,
+  brusselsActionVote: null,
+  flaggedAgencies: [],
+  flaggedReports: [],
+  confirmedComments: [],
+  diagnosticConfirmed: false,
+};
 
 export type CommentTopicId =
   | "wage-money-back"

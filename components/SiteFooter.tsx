@@ -1,19 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useLanguage } from "@/components/LanguageProvider";
 import { UI_TEXT } from "@/lib/i18n-ui";
 
-interface SiteFooterProps {
-  variant: "home" | "agencies" | "agency-detail";
-}
+export function SiteFooter() {
+  const pathname = usePathname() ?? "/";
+  const variant =
+    pathname === "/agencies"
+      ? "agencies"
+      : pathname.startsWith("/agencies/")
+        ? "agency-detail"
+        : "home";
 
-export function SiteFooter({ variant }: SiteFooterProps) {
   const { locale } = useLanguage();
   const f = UI_TEXT[locale].footer;
 
-  const title =
-    variant === "agencies" ? f.agenciesTitle : f.mainTitle;
+  const title = variant === "agencies" ? f.agenciesTitle : f.mainTitle;
   const description =
     variant === "agencies"
       ? f.agenciesDesc

@@ -1,14 +1,23 @@
-import { promises as fs } from "fs";
-import path from "path";
 import crypto from "crypto";
+import {
+  collection,
+  doc,
+  getDocs,
+  increment,
+  orderBy,
+  query,
+  runTransaction,
+  setDoc,
+} from "firebase/firestore";
+import { db } from "@/firebase";
+import { parseVoterVotes, VOTE_RECORDS_COLLECTION } from "./polls-store";
 import type {
   CommentSubmissionInput,
   CommentTopicId,
   CommunityComment,
 } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const COMMENTS_FILE = path.join(DATA_DIR, "comments.json");
+const COMMENTS_COLLECTION = "comments";
 
 const VALID_TOPICS = new Set<CommentTopicId>([
   "wage-money-back",
@@ -18,77 +27,50 @@ const VALID_TOPICS = new Set<CommentTopicId>([
   "rights-lawsuit",
 ]);
 
-export const SEEDED_COMMENTS: CommunityComment[] = [
-  {
-    id: "comment-seed-001",
-    agencyName: "Charlie works",
-    topic: "onboarding-lies",
-    corridor: "HU / PL → NL",
-    authorAlias: "Community Sample · Logistics Worker",
-    body: "Example testimony: At the onboarding office, staff rushed contracts in Dutch without translating fuel/deduction rules, and weeks later money was taken off net wages. Never sign blindly—keep recruiter screenshots and demand full written terms to submit to SNCU & Arbeidsinspectie.",
-    confirmations: 0,
-    createdAt: "2026-11-18T10:15:00.000Z",
-    isSeeded: true,
-  },
-  {
-    id: "comment-seed-002",
-    agencyName: "DIT & Larex",
-    topic: "wage-money-back",
-    corridor: "RO / EU → NL (Techniek & Bouw)",
-    authorAlias: "Community Sample · Technical Worker",
-    body: "Example testimony: Instead of applying host-company ADV hours, payroll placed statutory vakantie-uren into minus (-€890) and tried to reclaim earlier fuel lines. Under BW Art. 7:638, 7:628 & 7:632, workers can demand full repayment and file directly with SNCU & employment lawyers.",
-    confirmations: 0,
-    createdAt: "2026-11-19T14:30:00.000Z",
-    isSeeded: true,
-  },
-  {
-    id: "comment-seed-003",
-    agencyName: "Other Dutch Agency",
-    topic: "ignored-hours",
-    corridor: "EU → NL",
-    authorAlias: "Community Sample · Warehouse Worker",
-    body: "Example testimony: Planning stopped calling back, left workers in agency housing without shifts or guaranteed pay while deducting weekly rent, and told them to use their own phone and car. Send a written availability notice (BW Art. 7:628) and attach call logs for Arbeidsinspectie.",
-    confirmations: 0,
-    createdAt: "2026-11-20T00:45:00.000Z",
-    isSeeded: true,
-  },
-  {
-    id: "comment-seed-004",
-    agencyName: "General EU Mobility",
-    topic: "rights-lawsuit",
-    corridor: "EU → Netherlands",
-    authorAlias: "Community Sample · Fair-Work Advocate",
-    body: "Example testimony: Agencies count on international workers staying silent or leaving the country without filing forms. When our community votes, comments, and payslip proofs are exported together, Nederlandse Arbeidsinspectie, SNCU, Politie, and EU ELA receive undeniable collective evidence.",
-    confirmations: 0,
-    createdAt: "2026-11-20T08:00:00.000Z",
-    isSeeded: true,
-  },
-];
+function mapFirestoreComment(
+  id: string,
+  data: Record<string, unknown>
+): CommunityComment {
+  const corridor =
+    typeof data.corridor === "string" && data.corridor.trim()
+      ? data.corridor
+      : undefined;
 
-async function ensureCommentsFile(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  try {
-    await fs.access(COMMENTS_FILE);
-  } catch {
-    await fs.writeFile(
-      COMMENTS_FILE,
-      JSON.stringify(SEEDED_COMMENTS, null, 2),
-      "utf-8"
-    );
-  }
+  return {
+    id,
+    agencyName: String(data.agencyName ?? "General EU Mobility"),
+    topic: (VALID_TOPICS.has(data.topic as CommentTopicId)
+      ? data.topic
+      : "rights-lawsuit") as CommentTopicId,
+    ...(corridor ? { corridor } : {}),
+    authorAlias: String(data.authorAlias ?? "Anonymous Worker"),
+    body: String(data.body ?? ""),
+    confirmations:
+      typeof data.confirmations === "number" &&
+      Number.isFinite(data.confirmations)
+        ? data.confirmations
+        : 1,
+    createdAt:
+      typeof data.createdAt === "string"
+        ? data.createdAt
+        : new Date(0).toISOString(),
+    isSeeded: Boolean(data.isSeeded),
+  };
 }
 
 export async function readComments(): Promise<CommunityComment[]> {
   try {
-    await ensureCommentsFile();
-    const raw = await fs.readFile(COMMENTS_FILE, "utf-8");
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return SEEDED_COMMENTS;
-    }
-    return parsed as CommunityComment[];
-  } catch {
-    return SEEDED_COMMENTS;
+    const q = query(
+      collection(db, COMMENTS_COLLECTION),
+      orderBy("createdAtMs", "desc")
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((docSnap) =>
+      mapFirestoreComment(docSnap.id, docSnap.data())
+    );
+  } catch (err) {
+    console.error("[comments-store] Firestore readComments failed:", err);
+    return [];
   }
 }
 
@@ -144,39 +126,77 @@ export function validateCommentInput(
 export async function appendComment(
   input: CommentSubmissionInput
 ): Promise<CommunityComment> {
-  const existing = await readComments();
+  const id = `comment-${crypto.randomUUID().slice(0, 8)}`;
+  const nowMs = Date.now();
+  const createdAt = new Date(nowMs).toISOString();
+
   const comment: CommunityComment = {
-    id: `comment-${crypto.randomUUID().slice(0, 8)}`,
+    id,
     agencyName: input.agencyName,
     topic: input.topic,
     ...(input.corridor ? { corridor: input.corridor } : {}),
     authorAlias: input.authorAlias,
     body: input.body,
     confirmations: 1,
-    createdAt: new Date().toISOString(),
+    createdAt,
     isSeeded: false,
   };
 
-  const updated = [comment, ...existing];
-  await ensureCommentsFile();
-  await fs.writeFile(COMMENTS_FILE, JSON.stringify(updated, null, 2), "utf-8");
+  await setDoc(doc(db, COMMENTS_COLLECTION, id), {
+    ...comment,
+    createdAtMs: nowMs,
+  });
+
   return comment;
 }
 
 export async function confirmComment(
-  commentId: string
-): Promise<CommunityComment[] | null> {
-  const existing = await readComments();
-  const index = existing.findIndex((c) => c.id === commentId);
-  if (index === -1) return null;
+  commentId: string,
+  voterId?: string | null
+): Promise<{
+  comments: CommunityComment[];
+  alreadyConfirmed: boolean;
+} | null> {
+  const commentRef = doc(db, COMMENTS_COLLECTION, commentId);
+  const voterRef = voterId ? doc(db, VOTE_RECORDS_COLLECTION, voterId) : null;
+  const scopeKey = `comment-confirm:${commentId}`;
 
-  const updated = [...existing];
-  updated[index] = {
-    ...updated[index],
-    confirmations: (updated[index].confirmations ?? 0) + 1,
+  const txOutcome = await runTransaction(db, async (tx) => {
+    const [commentSnap, voterSnap] = await Promise.all([
+      tx.get(commentRef),
+      voterRef ? tx.get(voterRef) : Promise.resolve(null),
+    ]);
+
+    if (!commentSnap.exists()) {
+      return "not-found" as const;
+    }
+
+    const voterVotes = voterSnap?.exists()
+      ? parseVoterVotes(voterSnap.data())
+      : {};
+
+    if (voterRef && typeof voterVotes[scopeKey] === "string") {
+      return "already-confirmed" as const;
+    }
+
+    tx.update(commentRef, { confirmations: increment(1) });
+    if (voterRef) {
+      tx.set(voterRef, {
+        votes: { ...voterVotes, [scopeKey]: commentId },
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    return "confirmed" as const;
+  });
+
+  if (txOutcome === "not-found") {
+    return null;
+  }
+
+  const comments = await readComments();
+  return {
+    comments,
+    alreadyConfirmed: txOutcome === "already-confirmed",
   };
-
-  await ensureCommentsFile();
-  await fs.writeFile(COMMENTS_FILE, JSON.stringify(updated, null, 2), "utf-8");
-  return updated;
 }

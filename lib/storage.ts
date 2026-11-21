@@ -1,31 +1,22 @@
+import crypto from "crypto";
+import { get, put, type GetBlobResult, type PutBlobResult } from "@vercel/blob";
 import type { EvidenceAttachment, EvidenceItemType } from "./types";
 
 /**
- * Phase 2 Evidence Storage Contract.
+ * Phase 2 Evidence Storage Adapter — backed by Vercel Private Blob.
  *
- * Implement this adapter with Vercel Blob (`@vercel/blob`), AWS S3, or Cloudflare R2
- * once file uploads (payslips, contracts, accommodation condition photos) are enabled.
- *
- * Security & GDPR checklist before enabling uploads:
- * 1. Enforce MIME whitelist (PDF, PNG, JPEG, WebP) and max file size (e.g. 10 MB).
- * 2. Store files as private blobs with short-lived signed URLs rather than public buckets.
- * 3. Strip EXIF metadata and advise workers to redact BSN numbers and third-party faces/names.
+ * Security & GDPR safeguards:
+ * 1. Enforce MIME whitelist (PDF, PNG, JPEG, WebP) and max 4.5 MB server upload size.
+ * 2. Always store blobs with `access: "private"` and stream through `/api/evidence?pathname=...`.
+ * 3. Remind workers to redact BSN numbers and omit third-party faces/names.
  */
 export interface EvidenceUploadRequest {
-  reportId: string;
+  reportId?: string;
   type: EvidenceItemType;
   fileName: string;
   mimeType: EvidenceAttachment["mimeType"];
   sizeBytes: number;
-}
-
-export interface EvidenceStorageAdapter {
-  readonly mode: "disabled-text-only" | "blob-enabled";
-  readonly providerName: string;
-  createUploadSlot(
-    req: EvidenceUploadRequest
-  ): Promise<{ uploadUrl: string; attachmentId: string }>;
-  listByReport(reportId: string): Promise<EvidenceAttachment[]>;
+  body: Blob | Buffer | ReadableStream<Uint8Array>;
 }
 
 export const ALLOWED_EVIDENCE_MIME_TYPES: readonly EvidenceAttachment["mimeType"][] = [
@@ -35,19 +26,54 @@ export const ALLOWED_EVIDENCE_MIME_TYPES: readonly EvidenceAttachment["mimeType"
   "image/webp",
 ];
 
-export const MAX_EVIDENCE_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+// Vercel App Router server uploads support up to 4.5 MB request bodies.
+export const MAX_EVIDENCE_FILE_BYTES = 4_500_000;
 
-export const evidenceStorage: EvidenceStorageAdapter = {
-  mode: "disabled-text-only",
-  providerName: "Pending Blob Adapter (Vercel Blob / S3 / R2)",
+export function isBlobConfigured(): boolean {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
 
-  async createUploadSlot(req: EvidenceUploadRequest) {
+export function isAllowedEvidenceMimeType(
+  mimeType: string
+): mimeType is EvidenceAttachment["mimeType"] {
+  return (ALLOWED_EVIDENCE_MIME_TYPES as readonly string[]).includes(mimeType);
+}
+
+export function sanitizeEvidenceFileName(rawName: string): string {
+  const cleaned = rawName
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return (cleaned || "evidence-file").slice(0, 80);
+}
+
+export function buildPrivateEvidenceUrl(pathname: string): string {
+  return `/api/evidence?pathname=${encodeURIComponent(pathname)}`;
+}
+
+export async function uploadEvidenceBlob(
+  req: EvidenceUploadRequest
+): Promise<PutBlobResult> {
+  if (!isBlobConfigured()) {
     throw new Error(
-      `Blob storage is not yet enabled (requested upload for ${req.fileName}). Wire lib/storage.ts to Vercel Blob or S3 in Phase 2.`
+      "Vercel Blob token (BLOB_READ_WRITE_TOKEN) is not configured."
     );
-  },
+  }
+  const safeName = sanitizeEvidenceFileName(req.fileName);
+  const pathname = `evidence/${crypto.randomUUID()}-${safeName}`;
 
-  async listByReport() {
-    return [];
-  },
-};
+  return put(pathname, req.body, {
+    access: "private",
+    contentType: req.mimeType,
+    addRandomSuffix: false,
+  });
+}
+
+export async function getEvidenceBlob(
+  pathname: string
+): Promise<GetBlobResult | null> {
+  if (!isBlobConfigured()) {
+    return null;
+  }
+  return get(pathname, { access: "private" });
+}
