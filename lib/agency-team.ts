@@ -62,7 +62,6 @@ export interface AgencyRecord {
   scamPreventionFocus: string;
   registryChecklistNote: string;
   isSeeded?: boolean;
-  createdAt: string;
   departments: AgencyDepartmentNode[];
   members: AgencyTeamMember[];
 }

@@ -512,7 +512,7 @@ export function formatLocalizedLegalBrief(
     "EXTERN EU- & NL-ZAAKDOSSIER (NEDERLAND + BRUSSEL ESCALATIE)",
     "================================================================",
     `Zaakreferentie:   ${localizedReport.caseNumber}`,
-    `Datum gemeld:     ${localizedReport.createdAt.slice(0, 10)}`,
+    `Datum gemeld:     ${localizedReport.createdAt ? localizedReport.createdAt.slice(0, 10) : "N.v.t."}`,
     `Categorie:        ${cat.label}`,
     `Levensfase:       ${localizedReport.stage.toUpperCase()}`,
     `Regio (NL):       ${localizedReport.region}`,

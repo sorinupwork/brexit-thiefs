@@ -1,15 +1,17 @@
-import crypto from "crypto";
 import {
+  addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
   increment,
   orderBy,
   query,
   runTransaction,
-  setDoc,
+  serverTimestamp,
 } from "firebase/firestore";
-import { db } from "@/firebase";
+import { db, isFirebaseConfigured } from "@/firebase";
+import { compareIsoDesc, serializeFirestoreTimestamp } from "./firestore-utils";
 import { parseVoterVotes, VOTE_RECORDS_COLLECTION } from "./polls-store";
 import type {
   CommentSubmissionInput,
@@ -50,24 +52,30 @@ function mapFirestoreComment(
       Number.isFinite(data.confirmations)
         ? data.confirmations
         : 1,
-    createdAt:
-      typeof data.createdAt === "string"
-        ? data.createdAt
-        : new Date(0).toISOString(),
+    createdAt: serializeFirestoreTimestamp(data.createdAt, data.createdAtMs),
     isSeeded: Boolean(data.isSeeded),
   };
 }
 
 export async function readComments(): Promise<CommunityComment[]> {
+  if (!isFirebaseConfigured()) {
+    return [];
+  }
+
   try {
     const q = query(
       collection(db, COMMENTS_COLLECTION),
-      orderBy("createdAtMs", "desc")
+      orderBy("createdAt", "desc")
     );
     const snap = await getDocs(q);
-    return snap.docs.map((docSnap) =>
-      mapFirestoreComment(docSnap.id, docSnap.data())
-    );
+    return snap.docs
+      .map((docSnap) =>
+        mapFirestoreComment(
+          docSnap.id,
+          docSnap.data({ serverTimestamps: "estimate" })
+        )
+      )
+      .sort((a, b) => compareIsoDesc(a.createdAt, b.createdAt));
   } catch (err) {
     console.error("[comments-store] Firestore readComments failed:", err);
     return [];
@@ -126,28 +134,24 @@ export function validateCommentInput(
 export async function appendComment(
   input: CommentSubmissionInput
 ): Promise<CommunityComment> {
-  const id = `comment-${crypto.randomUUID().slice(0, 8)}`;
-  const nowMs = Date.now();
-  const createdAt = new Date(nowMs).toISOString();
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase is not configured.");
+  }
 
-  const comment: CommunityComment = {
-    id,
+  const docRef = await addDoc(collection(db, COMMENTS_COLLECTION), {
     agencyName: input.agencyName,
     topic: input.topic,
     ...(input.corridor ? { corridor: input.corridor } : {}),
     authorAlias: input.authorAlias,
     body: input.body,
     confirmations: 1,
-    createdAt,
     isSeeded: false,
-  };
-
-  await setDoc(doc(db, COMMENTS_COLLECTION, id), {
-    ...comment,
-    createdAtMs: nowMs,
+    createdAt: serverTimestamp(),
   });
 
-  return comment;
+  const createdSnap = await getDoc(docRef);
+  const data = createdSnap.data({ serverTimestamps: "estimate" }) ?? {};
+  return mapFirestoreComment(createdSnap.id, data);
 }
 
 export async function confirmComment(
@@ -157,6 +161,10 @@ export async function confirmComment(
   comments: CommunityComment[];
   alreadyConfirmed: boolean;
 } | null> {
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase is not configured.");
+  }
+
   const commentRef = doc(db, COMMENTS_COLLECTION, commentId);
   const voterRef = voterId ? doc(db, VOTE_RECORDS_COLLECTION, voterId) : null;
   const scopeKey = `comment-confirm:${commentId}`;
@@ -183,7 +191,7 @@ export async function confirmComment(
     if (voterRef) {
       tx.set(voterRef, {
         votes: { ...voterVotes, [scopeKey]: commentId },
-        updatedAt: new Date().toISOString(),
+        updatedAt: serverTimestamp(),
       });
     }
 

@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
@@ -14,20 +15,44 @@ export type Locale = "nl" | "en";
 const STORAGE_KEY = "werkrecht_locale";
 const LOCALE_EVENT = "werkrecht-locale-change";
 
-interface LanguageContextValue {
-  locale: Locale;
+interface LanguageActionsValue {
   setLocale: (next: Locale) => void;
   toggleLocale: () => void;
 }
 
-const LanguageContext = createContext<LanguageContextValue | null>(null);
+export interface LanguageContextValue extends LanguageActionsValue {
+  locale: Locale;
+}
 
-function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback);
-  window.addEventListener(LOCALE_EVENT, callback);
+const LanguageActionsContext = createContext<LanguageActionsValue | null>(null);
+
+const listeners = new Set<() => void>();
+let windowListenersAttached = false;
+
+function notifyLocaleListeners() {
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+function subscribeLocale(callback: () => void) {
+  listeners.add(callback);
+  if (typeof window !== "undefined" && !windowListenersAttached) {
+    window.addEventListener("storage", notifyLocaleListeners);
+    window.addEventListener(LOCALE_EVENT, notifyLocaleListeners);
+    windowListenersAttached = true;
+  }
   return () => {
-    window.removeEventListener("storage", callback);
-    window.removeEventListener(LOCALE_EVENT, callback);
+    listeners.delete(callback);
+    if (
+      listeners.size === 0 &&
+      typeof window !== "undefined" &&
+      windowListenersAttached
+    ) {
+      window.removeEventListener("storage", notifyLocaleListeners);
+      window.removeEventListener(LOCALE_EVENT, notifyLocaleListeners);
+      windowListenersAttached = false;
+    }
   };
 }
 
@@ -46,7 +71,7 @@ function getServerSnapshot(): Locale {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const locale = useSyncExternalStore(
-    subscribe,
+    subscribeLocale,
     getSnapshot,
     getServerSnapshot
   );
@@ -61,24 +86,45 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     } catch {
       // Ignore storage write errors in restricted browsing modes
     }
-    window.dispatchEvent(new Event(LOCALE_EVENT));
+    notifyLocaleListeners();
   }, []);
 
   const toggleLocale = useCallback(() => {
-    setLocale(locale === "nl" ? "en" : "nl");
-  }, [locale, setLocale]);
+    setLocale(getSnapshot() === "nl" ? "en" : "nl");
+  }, [setLocale]);
+
+  const actions = useMemo(
+    () => ({ setLocale, toggleLocale }),
+    [setLocale, toggleLocale]
+  );
 
   return (
-    <LanguageContext.Provider value={{ locale, setLocale, toggleLocale }}>
+    <LanguageActionsContext.Provider value={actions}>
       {children}
-    </LanguageContext.Provider>
+    </LanguageActionsContext.Provider>
   );
 }
 
 export function useLanguage(): LanguageContextValue {
-  const ctx = useContext(LanguageContext);
-  if (!ctx) {
+  const actions = useContext(LanguageActionsContext);
+  if (!actions) {
     throw new Error("useLanguage must be used within a LanguageProvider");
   }
-  return ctx;
+
+  // Subscribe in the consuming component so streamed <Suspense> boundaries
+  // hydrate with getServerSnapshot() ("nl") before syncing to localStorage.
+  const locale = useSyncExternalStore(
+    subscribeLocale,
+    getSnapshot,
+    getServerSnapshot
+  );
+
+  return useMemo(
+    () => ({
+      locale,
+      setLocale: actions.setLocale,
+      toggleLocale: actions.toggleLocale,
+    }),
+    [locale, actions.setLocale, actions.toggleLocale]
+  );
 }

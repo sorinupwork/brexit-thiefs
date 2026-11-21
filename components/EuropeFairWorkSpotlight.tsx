@@ -700,12 +700,14 @@ export function EuropeFairWorkSpotlight({
                               </span>
                             )}
                           </div>
-                          <time
-                            dateTime={comment.createdAt}
-                            className="font-mono text-[10px] text-slate-500"
-                          >
-                            {comment.createdAt.slice(0, 10)}
-                          </time>
+                          {comment.createdAt && (
+                            <time
+                              dateTime={comment.createdAt}
+                              className="font-mono text-[10px] text-slate-500"
+                            >
+                              {comment.createdAt.slice(0, 10)}
+                            </time>
+                          )}
                         </div>
 
                         <p className="mt-2.5 text-xs leading-relaxed text-slate-200 sm:text-sm">

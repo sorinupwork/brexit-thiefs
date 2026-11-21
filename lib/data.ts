@@ -550,7 +550,7 @@ export function formatLegalBrief(report: WorkerReport): string {
     "EXTERNAL EU & DUTCH WORKER CASE BRIEF (NL + BRUSSELS ESCALATION)",
     "================================================================",
     `Case Reference:   ${report.caseNumber}`,
-    `Date Logged:      ${report.createdAt.slice(0, 10)}`,
+    `Date Logged:      ${report.createdAt ? report.createdAt.slice(0, 10) : "N/A"}`,
     `Issue Category:   ${cat.label}`,
     `Lifecycle Stage:  ${report.stage.toUpperCase()}`,
     `Region (NL):      ${report.region}`,

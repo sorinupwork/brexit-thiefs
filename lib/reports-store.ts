@@ -1,14 +1,17 @@
-import crypto from "crypto";
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
   runTransaction,
+  serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
-import { db } from "@/firebase";
+import { db, isFirebaseConfigured } from "@/firebase";
 import { CATEGORY_META } from "./data";
+import { compareIsoDesc, serializeFirestoreTimestamp } from "./firestore-utils";
 import { buildPrivateEvidenceUrl } from "./storage";
 import type {
   AuthorityId,
@@ -74,7 +77,10 @@ function mapAttachments(
     if (!blobUrl) continue;
 
     clean.push({
-      id: typeof rec.id === "string" ? rec.id : crypto.randomUUID(),
+      id:
+        typeof rec.id === "string" && rec.id.trim()
+          ? rec.id
+          : (blobPathname ?? blobUrl),
       reportId,
       type: (VALID_EVIDENCE.has(rec.type as EvidenceItemType)
         ? rec.type
@@ -86,10 +92,6 @@ function mapAttachments(
       sizeBytes: typeof rec.sizeBytes === "number" ? rec.sizeBytes : 0,
       ...(blobPathname ? { blobPathname } : {}),
       blobUrl,
-      uploadedAt:
-        typeof rec.uploadedAt === "string"
-          ? rec.uploadedAt
-          : new Date(0).toISOString(),
       redactedForPii: Boolean(rec.redactedForPii ?? true),
     });
   }
@@ -117,7 +119,7 @@ function mapFirestoreReport(
 
   return {
     id,
-    caseNumber: String(data.caseNumber ?? "WR-2026-000"),
+    caseNumber: String(data.caseNumber ?? "WR-000"),
     title: String(data.title ?? ""),
     category,
     stage,
@@ -140,24 +142,30 @@ function mapFirestoreReport(
       ? (data.recommendedAuthorities as AuthorityId[])
       : CATEGORY_META[category].authorities,
     attachments: mapAttachments(data.attachments, id),
-    createdAt:
-      typeof data.createdAt === "string"
-        ? data.createdAt
-        : new Date(0).toISOString(),
+    createdAt: serializeFirestoreTimestamp(data.createdAt, data.createdAtMs),
     isSample: Boolean(data.isSample),
   };
 }
 
 export async function readReports(): Promise<WorkerReport[]> {
+  if (!isFirebaseConfigured()) {
+    return [];
+  }
+
   try {
     const q = query(
       collection(db, REPORTS_COLLECTION),
-      orderBy("createdAtMs", "desc")
+      orderBy("createdAt", "desc")
     );
     const snap = await getDocs(q);
-    return snap.docs.map((docSnap) =>
-      mapFirestoreReport(docSnap.id, docSnap.data())
-    );
+    return snap.docs
+      .map((docSnap) =>
+        mapFirestoreReport(
+          docSnap.id,
+          docSnap.data({ serverTimestamps: "estimate" })
+        )
+      )
+      .sort((a, b) => compareIsoDesc(a.createdAt, b.createdAt));
   } catch (err) {
     console.error("[reports-store] Firestore readReports failed:", err);
     return [];
@@ -266,13 +274,6 @@ export function validateReportInput(
       typeof item === "string" && VALID_EVIDENCE.has(item as EvidenceItemType)
   );
 
-  const rawAttachmentIds = Array.isArray(record.attachmentIds)
-    ? record.attachmentIds
-    : [];
-  const attachmentIds = rawAttachmentIds
-    .filter((id): id is string => typeof id === "string" && id.trim().length > 0)
-    .slice(0, 5);
-
   const fallbackAttachments: EvidenceAttachment[] = Array.isArray(
     record.attachments
   )
@@ -302,7 +303,6 @@ export function validateReportInput(
       summary,
       timelineNotes,
       evidenceHeld,
-      attachmentIds,
       fallbackAttachments,
     },
   };
@@ -311,17 +311,21 @@ export function validateReportInput(
 export async function appendReport(
   input: ReportSubmissionInput & { fallbackAttachments?: EvidenceAttachment[] }
 ): Promise<WorkerReport> {
-  const nowMs = Date.now();
-  const createdAt = new Date(nowMs).toISOString();
-  const year = new Date(nowMs).getFullYear();
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase is not configured.");
+  }
+
   const authorities = CATEGORY_META[input.category].authorities;
-  const reportId = crypto.randomUUID();
-  const attachments = mapAttachments(input.fallbackAttachments ?? [], reportId);
-
   const counterRef = doc(db, COUNTERS_COLLECTION, REPORTS_COUNTER_DOC);
-  const reportRef = doc(db, REPORTS_COLLECTION, reportId);
+  const reportRef = doc(collection(db, REPORTS_COLLECTION));
+  const attachments = mapAttachments(
+    input.fallbackAttachments ?? [],
+    reportRef.id
+  );
 
-  return runTransaction(db, async (tx) => {
+  const year = Timestamp.now().toDate().getUTCFullYear();
+
+  await runTransaction(db, async (tx) => {
     const counterSnap = await tx.get(counterRef);
     const prevSeq =
       counterSnap.exists() && typeof counterSnap.data().seq === "number"
@@ -330,8 +334,11 @@ export async function appendReport(
     const nextSeq = prevSeq + 1;
     const caseNumber = `WR-${year}-${String(nextSeq).padStart(3, "0")}`;
 
-    const report: WorkerReport = {
-      id: reportId,
+    tx.set(counterRef, {
+      seq: nextSeq,
+      updatedAt: serverTimestamp(),
+    });
+    tx.set(reportRef, {
       caseNumber,
       title: input.title,
       category: input.category,
@@ -347,13 +354,12 @@ export async function appendReport(
       evidenceHeld: input.evidenceHeld,
       recommendedAuthorities: authorities,
       attachments,
-      createdAt,
       isSample: false,
-    };
-
-    tx.set(counterRef, { seq: nextSeq });
-    tx.set(reportRef, { ...report, createdAtMs: nowMs });
-
-    return report;
+      createdAt: serverTimestamp(),
+    });
   });
+
+  const createdSnap = await getDoc(reportRef);
+  const data = createdSnap.data({ serverTimestamps: "estimate" }) ?? {};
+  return mapFirestoreReport(createdSnap.id, data);
 }

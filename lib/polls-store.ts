@@ -1,5 +1,5 @@
-import { doc, getDoc, runTransaction } from "firebase/firestore";
-import { db } from "@/firebase";
+import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
+import { db, isFirebaseConfigured } from "@/firebase";
 import {
   EMPTY_USER_VOTES,
   type BrusselsActionOptionId,
@@ -41,7 +41,6 @@ export const DEFAULT_POLL_STATE: PollState = {
   reportFlags: {},
   agencyFlags: {},
   diagnosticConfirmations: 0,
-  updatedAt: "2026-11-20T02:15:00.000Z",
 };
 
 const VALID_RED_FLAG_OPTIONS = new Set<RedFlagPollOptionId>([
@@ -110,10 +109,6 @@ function normalizePollState(raw?: Record<string, unknown>): PollState {
       Number.isFinite(raw.diagnosticConfirmations)
         ? raw.diagnosticConfirmations
         : 0,
-    updatedAt:
-      typeof raw.updatedAt === "string"
-        ? raw.updatedAt
-        : DEFAULT_POLL_STATE.updatedAt,
   };
 }
 
@@ -150,8 +145,7 @@ export function getScopeKeyForVote(vote: PollVoteInput): string {
 
 function applyPollIncrement(
   current: PollState,
-  vote: PollVoteInput,
-  updatedAt: string
+  vote: PollVoteInput
 ): PollState {
   const next: PollState = {
     redFlagVotes: { ...current.redFlagVotes },
@@ -160,7 +154,6 @@ function applyPollIncrement(
     reportFlags: { ...current.reportFlags },
     agencyFlags: { ...current.agencyFlags },
     diagnosticConfirmations: current.diagnosticConfirmations,
-    updatedAt,
   };
 
   if (vote.kind === "red-flag") {
@@ -186,6 +179,10 @@ function applyPollIncrement(
 }
 
 export async function readPolls(): Promise<PollState> {
+  if (!isFirebaseConfigured()) {
+    return DEFAULT_POLL_STATE;
+  }
+
   try {
     const snap = await getDoc(doc(db, POLLS_COLLECTION, POLLS_SUMMARY_DOC));
     return normalizePollState(snap.exists() ? snap.data() : undefined);
@@ -198,7 +195,7 @@ export async function readPolls(): Promise<PollState> {
 export async function readUserVotes(
   voterId: string | null
 ): Promise<UserVotesState> {
-  if (!voterId) return EMPTY_USER_VOTES;
+  if (!voterId || !isFirebaseConfigured()) return EMPTY_USER_VOTES;
 
   try {
     const snap = await getDoc(doc(db, VOTE_RECORDS_COLLECTION, voterId));
@@ -328,6 +325,10 @@ export async function recordPollVote(
   vote: PollVoteInput,
   voterId?: string | null
 ): Promise<{ polls: PollState; alreadyVoted: boolean }> {
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase is not configured.");
+  }
+
   const summaryRef = doc(db, POLLS_COLLECTION, POLLS_SUMMARY_DOC);
   const voterRef = voterId ? doc(db, VOTE_RECORDS_COLLECTION, voterId) : null;
   const scopeKey = getScopeKeyForVote(vote);
@@ -349,16 +350,18 @@ export async function recordPollVote(
       return { polls: currentPolls, alreadyVoted: true };
     }
 
-    const updatedAt = new Date().toISOString();
-    const nextPolls = applyPollIncrement(currentPolls, vote, updatedAt);
+    const nextPolls = applyPollIncrement(currentPolls, vote);
 
     if (voterRef) {
       tx.set(voterRef, {
         votes: { ...voterVotes, [scopeKey]: vote.targetId },
-        updatedAt,
+        updatedAt: serverTimestamp(),
       });
     }
-    tx.set(summaryRef, nextPolls);
+    tx.set(summaryRef, {
+      ...nextPolls,
+      updatedAt: serverTimestamp(),
+    });
 
     return { polls: nextPolls, alreadyVoted: false };
   });

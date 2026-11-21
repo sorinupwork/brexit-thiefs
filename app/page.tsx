@@ -1,4 +1,5 @@
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
+import { connection } from "next/server";
 import { AgencyCorruptionVisualizer } from "@/components/AgencyCorruptionVisualizer";
 import { AgencyVerification } from "@/components/AgencyVerification";
 import { EuropeFairWorkSpotlight } from "@/components/EuropeFairWorkSpotlight";
@@ -15,6 +16,10 @@ import { readReports } from "@/lib/reports-store";
 import type { PollState } from "@/lib/types";
 import { getVoterIdFromCookie } from "@/lib/voter-cookie";
 
+const getReports = cache(readReports);
+const getPolls = cache(readPolls);
+const getComments = cache(readComments);
+
 function sumAllPollVotes(polls: PollState): number {
   const sumObj = (obj?: Record<string, number>) =>
     Object.values(obj ?? {}).reduce((s, n) => s + n, 0);
@@ -29,10 +34,11 @@ function sumAllPollVotes(polls: PollState): number {
 }
 
 async function HeroLiveLedgerSection() {
+  await connection();
   const [reports, polls, comments] = await Promise.all([
-    readReports(),
-    readPolls(),
-    readComments(),
+    getReports(),
+    getPolls(),
+    getComments(),
   ]);
 
   const totalStolenEur = reports.reduce(
@@ -43,13 +49,16 @@ async function HeroLiveLedgerSection() {
     (sum, c) => sum + (c.confirmations ?? 0),
     0
   );
-  const totalVotes = sumAllPollVotes(polls) + commentConfirmations;
+  const pollVotes = sumAllPollVotes(polls);
+  const totalVotes = pollVotes + commentConfirmations;
 
   return (
     <HeroLiveLedgerBar
       initialStolenEur={totalStolenEur}
       initialCasesCount={reports.length}
       initialVotesCount={totalVotes}
+      initialPollVotes={pollVotes}
+      initialCommentConfirmations={commentConfirmations}
       initialCommentsCount={comments.length}
     />
   );
@@ -64,7 +73,7 @@ function HeroLiveLedgerFallback() {
 async function AgencySpotlightSection() {
   const voterId = await getVoterIdFromCookie();
   const [polls, userVotes] = await Promise.all([
-    readPolls(),
+    getPolls(),
     readUserVotes(voterId),
   ]);
   return (
@@ -89,9 +98,9 @@ function AgencySpotlightFallback() {
 async function CommunityActionSection() {
   const voterId = await getVoterIdFromCookie();
   const [reports, polls, comments, userVotes] = await Promise.all([
-    readReports(),
-    readPolls(),
-    readComments(),
+    getReports(),
+    getPolls(),
+    getComments(),
     readUserVotes(voterId),
   ]);
   return (
@@ -117,8 +126,8 @@ function SpotlightFallback() {
 async function ReportsSection() {
   const voterId = await getVoterIdFromCookie();
   const [reports, polls, userVotes] = await Promise.all([
-    readReports(),
-    readPolls(),
+    getReports(),
+    getPolls(),
     readUserVotes(voterId),
   ]);
   return (

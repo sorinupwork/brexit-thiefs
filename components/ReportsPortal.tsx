@@ -296,7 +296,6 @@ export function ReportsPortal({
         summary,
         timelineNotes,
         evidenceHeld,
-        attachmentIds: uploadedAttachments.map((a) => a.id),
         attachments: uploadedAttachments,
       });
 
@@ -428,12 +427,14 @@ export function ReportsPortal({
                             </span>
                           )}
                         </div>
-                        <time
-                          dateTime={report.createdAt}
-                          className="font-mono text-[11px] text-slate-500"
-                        >
-                          {report.createdAt.slice(0, 10)}
-                        </time>
+                        {report.createdAt && (
+                          <time
+                            dateTime={report.createdAt}
+                            className="font-mono text-[11px] text-slate-500"
+                          >
+                            {report.createdAt.slice(0, 10)}
+                          </time>
+                        )}
                       </div>
 
                       <h3 className="mt-3 text-base font-semibold leading-snug text-slate-950">

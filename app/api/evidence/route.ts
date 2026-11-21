@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
   buildPrivateEvidenceUrl,
@@ -147,11 +146,9 @@ export async function POST(request: NextRequest) {
     });
 
     const proxyUrl = buildPrivateEvidenceUrl(blob.pathname);
-    const id = crypto.randomUUID();
-    const uploadedAt = new Date().toISOString();
 
     const attachment: EvidenceAttachment = {
-      id,
+      id: blob.pathname,
       reportId: "",
       type: evidenceType,
       fileName: file.name.slice(0, 140),
@@ -159,7 +156,6 @@ export async function POST(request: NextRequest) {
       sizeBytes: file.size,
       blobPathname: blob.pathname,
       blobUrl: proxyUrl,
-      uploadedAt,
       redactedForPii: true,
     };
 

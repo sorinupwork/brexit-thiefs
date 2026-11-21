@@ -44,7 +44,6 @@ export interface EvidenceAttachment {
   sizeBytes: number;
   blobPathname?: string;
   blobUrl: string;
-  uploadedAt: string;
   redactedForPii: boolean;
 }
 
@@ -82,7 +81,6 @@ export interface ReportSubmissionInput {
   summary: string;
   timelineNotes: string;
   evidenceHeld: EvidenceItemType[];
-  attachmentIds?: string[];
 }
 
 export type RedFlagPollOptionId =
@@ -116,7 +114,6 @@ export interface PollState {
   reportFlags: Record<string, number>;
   agencyFlags: Record<string, number>;
   diagnosticConfirmations: number;
-  updatedAt: string;
 }
 
 export interface UserVotesState {

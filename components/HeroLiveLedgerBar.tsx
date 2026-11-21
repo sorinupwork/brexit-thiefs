@@ -9,6 +9,8 @@ interface HeroLiveLedgerBarProps {
   initialStolenEur: number;
   initialCasesCount: number;
   initialVotesCount: number;
+  initialPollVotes?: number;
+  initialCommentConfirmations?: number;
   initialCommentsCount: number;
 }
 
@@ -25,10 +27,12 @@ function countAllVotes(polls: PollState): number {
   );
 }
 
-export function HeroLiveLedgerBar({
+function HeroLiveLedgerContent({
   initialStolenEur,
   initialCasesCount,
   initialVotesCount,
+  initialPollVotes,
+  initialCommentConfirmations = 0,
   initialCommentsCount,
 }: HeroLiveLedgerBarProps) {
   const { locale } = useLanguage();
@@ -36,20 +40,13 @@ export function HeroLiveLedgerBar({
 
   const [stolenEur, setStolenEur] = useState(initialStolenEur);
   const [casesCount, setCasesCount] = useState(initialCasesCount);
-  const [votesCount, setVotesCount] = useState(initialVotesCount);
+  const [pollVotes, setPollVotes] = useState(
+    initialPollVotes ?? Math.max(0, initialVotesCount - initialCommentConfirmations)
+  );
+  const [commentConfirmations, setCommentConfirmations] = useState(
+    initialCommentConfirmations
+  );
   const [commentsCount, setCommentsCount] = useState(initialCommentsCount);
-
-  useEffect(() => {
-    setStolenEur(initialStolenEur);
-    setCasesCount(initialCasesCount);
-    setVotesCount(initialVotesCount);
-    setCommentsCount(initialCommentsCount);
-  }, [
-    initialStolenEur,
-    initialCasesCount,
-    initialVotesCount,
-    initialCommentsCount,
-  ]);
 
   useEffect(() => {
     function onReportAdded(e: Event) {
@@ -61,13 +58,13 @@ export function HeroLiveLedgerBar({
     function onPollsUpdated(e: Event) {
       const custom = e as CustomEvent<PollState>;
       if (!custom.detail) return;
-      setVotesCount(countAllVotes(custom.detail));
+      setPollVotes(countAllVotes(custom.detail));
     }
     function onCommentAdded() {
       setCommentsCount((c) => c + 1);
     }
     function onCommentConfirmed() {
-      setVotesCount((v) => v + 1);
+      setCommentConfirmations((v) => v + 1);
     }
 
     window.addEventListener("werkrecht-report-added", onReportAdded);
@@ -84,6 +81,8 @@ export function HeroLiveLedgerBar({
       );
     };
   }, []);
+
+  const votesCount = pollVotes + commentConfirmations;
 
   return (
     <div className="mt-5 rounded-2xl border border-slate-300 bg-slate-950 p-4 text-white shadow-sm sm:px-6">
@@ -133,4 +132,9 @@ export function HeroLiveLedgerBar({
       </div>
     </div>
   );
+}
+
+export function HeroLiveLedgerBar(props: HeroLiveLedgerBarProps) {
+  const syncKey = `${props.initialStolenEur}-${props.initialCasesCount}-${props.initialVotesCount}-${props.initialCommentsCount}`;
+  return <HeroLiveLedgerContent key={syncKey} {...props} />;
 }

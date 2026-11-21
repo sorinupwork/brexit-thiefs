@@ -25,7 +25,6 @@
     "scamPreventionFocus": "Before signing or authorizing deductions, verify written inlenersbeloning pay parity, signed fuel/transport terms (no retroactive clawbacks), and active SNF certification on housing.",
     "registryChecklistNote": "Cross-check KvK Waadi registration, SNA payroll certification, ABU/NBBU membership, and SNF housing certificates prior to onboarding.",
     "isSeeded": true,
-    "createdAt": "2026-11-20T00:00:00.000Z",
     "departments": [
       {
         "id": "regional-management",
@@ -220,7 +219,6 @@
     "scamPreventionFocus": "For skilled technical, metal, and construction placements, verify written host-company CAO parity (inlenersbeloning including ADV/ATV hours vs. vakantie-uren—never accept holiday hours put into minus to force work), written travel/fuel terms, and SNF housing certification.",
     "registryChecklistNote": "Cross-check KvK Waadi registration for the exact contracting entity (DIT Personeel / Larex), SNA NEN 4400-1 certification, NBBU CAO rules, and active SNF housing certificates.",
     "isSeeded": true,
-    "createdAt": "2026-11-20T02:10:00.000Z",
     "departments": [
       {
         "id": "regional-management",

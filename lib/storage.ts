@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import { get, put, type GetBlobResult, type PutBlobResult } from "@vercel/blob";
 import type { EvidenceAttachment, EvidenceItemType } from "./types";
 
@@ -60,12 +59,12 @@ export async function uploadEvidenceBlob(
     );
   }
   const safeName = sanitizeEvidenceFileName(req.fileName);
-  const pathname = `evidence/${crypto.randomUUID()}-${safeName}`;
+  const pathname = `evidence/${safeName}`;
 
   return put(pathname, req.body, {
     access: "private",
     contentType: req.mimeType,
-    addRandomSuffix: false,
+    addRandomSuffix: true,
   });
 }
 
