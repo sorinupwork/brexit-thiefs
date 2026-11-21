@@ -10,7 +10,9 @@ import {
   type ReactNode,
 } from "react";
 
-export type Locale = "nl" | "en";
+import type { Locale } from "@/lib/types";
+
+export type { Locale };
 
 const STORAGE_KEY = "werkrecht_locale";
 const LOCALE_EVENT = "werkrecht-locale-change";

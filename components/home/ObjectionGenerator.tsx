@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { useLanguage } from "@/components/LanguageProvider";
+import { useLanguage } from "@/components/layout/LanguageProvider";
+import { copyTextOrDownload, downloadTextFile } from "@/lib/client-storage";
 import { UI_TEXT } from "@/lib/i18n-ui";
 
 type DisputeType =
@@ -242,27 +243,18 @@ export function ObjectionGenerator() {
   ]);
 
   async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(generatedLetter);
+    const didCopy = await copyTextOrDownload(
+      generatedLetter,
+      `wage-objection-${lang}.txt`
+    );
+    if (didCopy) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
-    } catch {
-      handleDownload();
     }
   }
 
   function handleDownload() {
-    const blob = new Blob([generatedLetter], {
-      type: "text/plain;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `wage-objection-${lang}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    downloadTextFile(`wage-objection-${lang}.txt`, generatedLetter);
   }
 
   return (
@@ -382,7 +374,7 @@ export function ObjectionGenerator() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label
                     htmlFor="obj-weeks"
@@ -418,7 +410,11 @@ export function ObjectionGenerator() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div
+                  className={`grid grid-cols-1 gap-3 ${
+                    disputeType === "combined" ? "sm:grid-cols-3" : "sm:grid-cols-2"
+                  }`}
+                >
                   {disputeType !== "fuel-clawback" && (
                     <div>
                       <label
@@ -506,7 +502,7 @@ export function ObjectionGenerator() {
               </div>
             </div>
 
-            <pre className="mt-4 flex-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs leading-relaxed text-slate-200">
+            <pre className="mt-4 flex-1 overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-slate-200">
               {generatedLetter}
             </pre>
           </div>

@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useLanguage } from "@/components/LanguageProvider";
+import { CollaboratingCompaniesSlider } from "@/components/agencies/CollaboratingCompaniesSlider";
+import { useLanguage } from "@/components/layout/LanguageProvider";
 import { getInitials, type AgencyRecord } from "@/lib/agency-team";
 import { getLocalizedAgency } from "@/lib/i18n-data";
 import { UI_TEXT } from "@/lib/i18n-ui";
@@ -15,7 +16,6 @@ interface AgenciesDirectoryProps {
 export function AgenciesDirectory({ initialAgencies }: AgenciesDirectoryProps) {
   const { locale } = useLanguage();
   const copy = UI_TEXT[locale].agenciesDir;
-  const scamPillars = UI_TEXT[locale].scamPillars;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "with-photos">("all");
@@ -23,12 +23,6 @@ export function AgenciesDirectory({ initialAgencies }: AgenciesDirectoryProps) {
   const localizedAgencies = useMemo(
     () => initialAgencies.map((a) => getLocalizedAgency(a, locale)),
     [initialAgencies, locale]
-  );
-
-  const totalMembersCount = useMemo(
-    () =>
-      localizedAgencies.reduce((sum, agency) => sum + agency.members.length, 0),
-    [localizedAgencies]
   );
 
   const filteredAgencies = useMemo(() => {
@@ -57,68 +51,7 @@ export function AgenciesDirectory({ initialAgencies }: AgenciesDirectoryProps) {
 
   return (
     <div className="bg-[#f8f9fa]">
-      {/* Hero Banner */}
-      <section className="blueprint-grid border-b border-slate-200 py-12 sm:py-16">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12">
-            <div className="lg:col-span-8">
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 font-mono text-[11px] font-medium text-slate-700 shadow-2xs">
-                <span className="h-2 w-2 rounded-full bg-[#0A66C2]" />
-                {copy.pill}
-              </div>
-
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                {copy.title}
-              </h1>
-
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                {copy.intro}
-              </p>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  href="/#verify-agency"
-                  className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#D95D24]"
-                >
-                  {copy.verifyCta}
-                </Link>
-              </div>
-            </div>
-
-            {/* Stats Card */}
-            <div className="lg:col-span-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-                <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  {copy.statsTitle}
-                </span>
-                <dl className="mt-3 grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <dt className="font-mono text-[10px] text-slate-500">
-                      {copy.trackedAgencies}
-                    </dt>
-                    <dd className="mt-1 text-2xl font-semibold text-slate-950">
-                      {localizedAgencies.length}
-                    </dd>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <dt className="font-mono text-[10px] text-slate-500">
-                      {copy.teamProfiles}
-                    </dt>
-                    <dd className="mt-1 text-2xl font-semibold text-slate-950">
-                      {totalMembersCount}
-                    </dd>
-                  </div>
-                </dl>
-                <p className="mt-3 text-xs leading-relaxed text-slate-600">
-                  {copy.statsNote}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Main Content: Directory Grid + Collaborative Add Agency Form */}
+      {/* Directory Grid */}
       <section className="border-b border-slate-200 bg-white py-14">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
@@ -126,9 +59,9 @@ export function AgenciesDirectory({ initialAgencies }: AgenciesDirectoryProps) {
               <p className="font-mono text-xs font-semibold uppercase tracking-widest text-[#D95D24]">
                 {copy.section1Eyebrow}
               </p>
-              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
                 {copy.section1Title}
-              </h2>
+              </h1>
             </div>
           </div>
 
@@ -319,46 +252,8 @@ export function AgenciesDirectory({ initialAgencies }: AgenciesDirectoryProps) {
         </div>
       </section>
 
-      {/* Cross-Agency Scam-Prevention Pillars */}
-      <section className="bg-[#f8f9fa] py-14">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="max-w-3xl">
-            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-rose-700">
-              {copy.pillarsEyebrow}
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              {copy.pillarsTitle}
-            </h2>
-          </div>
-
-          <div className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-3">
-            {scamPillars.map((pillar) => (
-              <div
-                key={pillar.code}
-                className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-2xs"
-              >
-                <div>
-                  <span className="font-mono text-[11px] font-semibold text-[#D95D24]">
-                    {pillar.code}
-                  </span>
-                  <h3 className="mt-1.5 text-base font-semibold text-slate-950">
-                    {pillar.title}
-                  </h3>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                    {pillar.detail}
-                  </p>
-                </div>
-                <Link
-                  href={pillar.href}
-                  className="mt-4 inline-flex items-center text-xs font-semibold text-slate-900 hover:text-[#D95D24]"
-                >
-                  {pillar.cta}
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Collaborating Warehouses & Host Companies Slider */}
+      <CollaboratingCompaniesSlider />
     </div>
   );
 }

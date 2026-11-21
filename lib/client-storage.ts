@@ -111,3 +111,35 @@ export function mergeUniqueIds(
 ): string[] {
   return Array.from(new Set([...serverIds, ...localIds]));
 }
+
+/**
+ * Triggers a browser download for a UTF-8 plain-text file.
+ */
+export function downloadTextFile(filename: string, content: string): void {
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Copies text to the clipboard, falling back to downloading a `.txt` file on failure.
+ * Returns `true` when clipboard copy succeeded.
+ */
+export async function copyTextOrDownload(
+  text: string,
+  fallbackFilename: string
+): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    downloadTextFile(fallbackFilename, text);
+    return false;
+  }
+}

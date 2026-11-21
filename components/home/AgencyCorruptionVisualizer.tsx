@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { submitVoteAction } from "@/actions/votes";
-import { useLanguage } from "@/components/LanguageProvider";
-import { MemberPhotoModal } from "@/components/MemberPhotoModal";
+import { useLanguage } from "@/components/layout/LanguageProvider";
+import { MemberPhotoModal } from "@/components/shared/MemberPhotoModal";
 import {
   getInitials,
   type AgencyRecord,

@@ -1,19 +1,17 @@
 import type { MetadataRoute } from "next";
 import { AGENCIES } from "@/lib/agency-team";
+import { SITE_URL } from "@/lib/seo";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://werkrecht-nl.vercel.app";
-
   const staticRoutes: MetadataRoute.Sitemap = [
     {
-      url: `${baseUrl}/`,
+      url: `${SITE_URL}/`,
       lastModified: "2026-11-20",
       changeFrequency: "daily",
       priority: 1,
     },
     {
-      url: `${baseUrl}/agencies`,
+      url: `${SITE_URL}/agencies`,
       lastModified: "2026-11-20",
       changeFrequency: "weekly",
       priority: 0.9,
@@ -21,7 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
 
   const agencyRoutes: MetadataRoute.Sitemap = AGENCIES.map((agency) => ({
-    url: `${baseUrl}/agencies/${agency.slug}`,
+    url: `${SITE_URL}/agencies/${agency.slug}`,
     lastModified: "2026-11-20",
     changeFrequency: "weekly",
     priority: 0.85,

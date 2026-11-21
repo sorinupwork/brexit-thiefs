@@ -1,14 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { useLanguage } from "@/components/LanguageProvider";
+import { useLanguage } from "@/components/layout/LanguageProvider";
 import { UI_TEXT } from "@/lib/i18n-ui";
 
-interface HomeHeroProps {
-  liveLedgerSlot?: ReactNode;
-}
-
-export function HomeHero({ liveLedgerSlot }: HomeHeroProps) {
+export function HomeHero() {
   const { locale } = useLanguage();
   const h = UI_TEXT[locale].home;
 
@@ -17,12 +12,7 @@ export function HomeHero({ liveLedgerSlot }: HomeHeroProps) {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
           <div className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 font-mono text-[11px] font-semibold text-emerald-900 shadow-2xs">
-              <span className="h-2 w-2 rounded-full bg-emerald-600" />
-              {h.notCompanyPill}
-            </div>
-
-            <p className="mt-4 font-mono text-xs font-semibold uppercase tracking-widest text-[#D95D24]">
+            <p className="mt-1 font-mono text-xs font-semibold uppercase tracking-widest text-[#D95D24]">
               {h.eyebrow}
             </p>
 
@@ -44,36 +34,23 @@ export function HomeHero({ liveLedgerSlot }: HomeHeroProps) {
               {h.introAnd}
             </p>
 
-            {/* 4 Core Human-First Priorities */}
-            <div className="mt-5 flex flex-wrap gap-2">
-              {h.valuesBadges.map((badge) => (
-                <span
-                  key={badge}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1 font-mono text-[11px] font-semibold text-slate-800 shadow-2xs"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#D95D24]" />
-                  {badge}
-                </span>
-              ))}
-            </div>
-
             {/* Primary CTAs */}
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               <a
                 href="#agency-spotlight"
-                className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-[#D95D24]"
+                className="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-5 py-3 text-center text-sm font-semibold text-white shadow-xs transition-colors hover:bg-[#D95D24] sm:w-auto"
               >
                 {h.ctaPrimary}
               </a>
               <a
                 href="#objection-letter"
-                className="inline-flex items-center justify-center rounded-lg border border-[#D95D24] bg-white px-5 py-3 text-sm font-semibold text-[#D95D24] transition-colors hover:bg-[#D95D24] hover:text-white"
+                className="inline-flex w-full items-center justify-center rounded-lg border border-[#D95D24] bg-white px-5 py-3 text-center text-sm font-semibold text-[#D95D24] transition-colors hover:bg-[#D95D24] hover:text-white sm:w-auto"
               >
                 {h.ctaSecondary}
               </a>
               <a
                 href="#community-action"
-                className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition-colors hover:border-slate-900 hover:text-slate-950"
+                className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-800 transition-colors hover:border-slate-900 hover:text-slate-950 sm:w-auto"
               >
                 {h.ctaCommunity}
               </a>
@@ -100,14 +77,6 @@ export function HomeHero({ liveLedgerSlot }: HomeHeroProps) {
           {/* Right Card: 4-Step Human Needs, Money Back, Rights Back, Explain & Prove */}
           <div className="lg:col-span-5">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                <span className="font-mono text-xs font-semibold uppercase tracking-wider text-slate-800">
-                  {h.cardHeader}
-                </span>
-                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-emerald-900">
-                  {h.gdprBadge}
-                </span>
-              </div>
 
               <dl className="mt-4 grid grid-cols-1 gap-3">
                 <div className="rounded-xl border border-rose-200 bg-rose-50/75 p-3.5">
@@ -159,10 +128,6 @@ export function HomeHero({ liveLedgerSlot }: HomeHeroProps) {
                 </div>
               </dl>
 
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-950 p-3.5 font-mono text-[11px] leading-relaxed text-slate-200">
-                <span className="text-amber-400">{h.principleLabel}</span>{" "}
-                {h.principleBody}
-              </div>
             </div>
           </div>
         </div>
@@ -188,9 +153,6 @@ export function HomeHero({ liveLedgerSlot }: HomeHeroProps) {
             </div>
           </div>
         </div>
-
-        {/* Server-rendered live DB ledger from real user forms */}
-        {liveLedgerSlot}
       </div>
     </section>
   );

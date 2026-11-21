@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { LanguageProvider } from "@/components/LanguageProvider";
-import { Navbar } from "@/components/Navbar";
-import { SiteFooter } from "@/components/SiteFooter";
+import { LanguageProvider } from "@/components/layout/LanguageProvider";
+import { Navbar } from "@/components/layout/Navbar";
+import { SiteFooter } from "@/components/layout/SiteFooter";
+import { SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,11 +17,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://werkrecht-nl.vercel.app";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
   title: {
     default:
       "WerkRecht NL · Stop Temp-Agency Exploitation, Reclaim Wages & Escalate Across 1 Europe",
@@ -47,7 +45,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    url: siteUrl,
+    url: SITE_URL,
     siteName: "WerkRecht NL · 1 Europe Fair Work",
     title:
       "WerkRecht NL · Take Back Your Money, Rights & Dignity Across Europe",

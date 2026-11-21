@@ -3,29 +3,20 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useLanguage } from "@/components/LanguageProvider";
-import { MemberPhotoModal } from "@/components/MemberPhotoModal";
+import { CollaboratingCompaniesSlider } from "@/components/agencies/CollaboratingCompaniesSlider";
+import { useLanguage } from "@/components/layout/LanguageProvider";
+import { MemberPhotoModal } from "@/components/shared/MemberPhotoModal";
 import {
   getInitials,
   type AgencyDepartmentId,
   type AgencyRecord,
+  type AgencySummaryLink,
   type AgencyTeamMember,
 } from "@/lib/agency-team";
-import {
-  getLocalizedAgency,
-  getLocalizedDisputeBridges,
-} from "@/lib/i18n-data";
+import { getLocalizedAgency } from "@/lib/i18n-data";
 import { UI_TEXT } from "@/lib/i18n-ui";
 
 type FilterOption = "all" | "verified" | "unverified" | AgencyDepartmentId;
-
-interface AgencySummaryLink {
-  id: string;
-  slug: string;
-  name: string;
-  hqLocation: string;
-  memberCount: number;
-}
 
 interface AgencyTeamVisualizerProps {
   initialAgency: AgencyRecord;
@@ -46,11 +37,7 @@ export function AgencyTeamVisualizer({
 }: AgencyTeamVisualizerProps) {
   const { locale } = useLanguage();
   const copy = UI_TEXT[locale].agencyVisualizer;
-  const bridges = getLocalizedDisputeBridges(locale);
 
-  const [selectedDeptId, setSelectedDeptId] = useState<AgencyDepartmentId>(
-    initialAgency.departments[0]?.id ?? "regional-management"
-  );
   const [activeFilter, setActiveFilter] = useState<FilterOption>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [inspectedMember, setInspectedMember] =
@@ -60,10 +47,6 @@ export function AgencyTeamVisualizer({
     () => getLocalizedAgency(initialAgency, locale),
     [initialAgency, locale]
   );
-
-  const activeDepartment =
-    agency.departments.find((d) => d.id === selectedDeptId) ??
-    agency.departments[0];
 
   const verifiedCount = useMemo(
     () => agency.members.filter((m) => m.roleStatus === "verified").length,
@@ -98,11 +81,6 @@ export function AgencyTeamVisualizer({
       );
     });
   }, [agency.members, activeFilter, searchQuery]);
-
-  function handleSelectDeptFromOrg(deptId: AgencyDepartmentId) {
-    setSelectedDeptId(deptId);
-    setActiveFilter(deptId);
-  }
 
   return (
     <div className="bg-[#f8f9fa]">
@@ -277,190 +255,7 @@ export function AgencyTeamVisualizer({
         </div>
       </section>
 
-      {/* 2. Interactive Visual Org & Department Flow Diagram */}
-      <section className="border-b border-slate-200 bg-white py-14">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-            <div className="max-w-3xl">
-              <p className="font-mono text-xs font-semibold uppercase tracking-widest text-[#D95D24]">
-                {copy.sec1Eyebrow}
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-                {copy.sec1Title}
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                {copy.sec1Intro}
-              </p>
-            </div>
-            {activeFilter !== "all" && (
-              <button
-                type="button"
-                onClick={() => setActiveFilter("all")}
-                className="inline-flex shrink-0 items-center rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:border-slate-900"
-              >
-                {copy.showAllProfiles} {agency.members.length}{" "}
-                {copy.profilesSuffix}
-              </button>
-            )}
-          </div>
-
-          {/* Visual Org Chart Tree */}
-          <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50/70 p-5 sm:p-8">
-            <div className="mx-auto max-w-md rounded-xl border-2 border-slate-900 bg-slate-900 p-4 text-center text-white shadow-sm">
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-amber-400">
-                {copy.orgRootSub}
-              </span>
-              <div className="mt-1 text-base font-semibold">
-                {agency.name} {copy.orgRootSuffix}
-              </div>
-              <p className="mt-1 text-xs text-slate-300">{copy.orgRootHint}</p>
-            </div>
-
-            <div className="mx-auto hidden h-8 w-0.5 bg-slate-300 md:block" />
-            <div className="mx-auto hidden w-2/3 border-t-2 border-slate-300 md:block" />
-
-            <div className="mt-4 grid grid-cols-1 gap-4 md:mt-0 md:grid-cols-3">
-              {agency.departments.map((dept) => {
-                const isSelected = selectedDeptId === dept.id;
-                const deptMembers = agency.members.filter(
-                  (m) => m.departmentId === dept.id
-                );
-
-                return (
-                  <div key={dept.id} className="flex flex-col items-center">
-                    <div className="hidden h-5 w-0.5 bg-slate-300 md:block" />
-                    <button
-                      type="button"
-                      onClick={() => handleSelectDeptFromOrg(dept.id)}
-                      aria-pressed={isSelected}
-                      className={`flex h-full w-full flex-col justify-between rounded-xl border-2 p-4 text-left transition-all ${
-                        isSelected
-                          ? "border-slate-900 bg-white shadow-md ring-2 ring-[#D95D24]/25"
-                          : "border-slate-200 bg-white hover:border-slate-400"
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className={`rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${dept.accentClass}`}
-                          >
-                            {dept.code}
-                          </span>
-                          <span className="font-mono text-[11px] text-slate-500">
-                            {deptMembers.length}{" "}
-                            {deptMembers.length === 1
-                              ? copy.personSingular
-                              : copy.personPlural}
-                          </span>
-                        </div>
-                        <h3 className="mt-2.5 text-base font-semibold text-slate-950">
-                          {dept.title}
-                        </h3>
-                        <p className="mt-0.5 font-mono text-[11px] text-slate-500">
-                          {dept.dutchLabel}
-                        </p>
-                        <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                          {dept.scope}
-                        </p>
-                      </div>
-
-                      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                        {deptMembers.length > 0 ? (
-                          deptMembers.map((member) => (
-                            <div
-                              key={member.id}
-                              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 py-0.5 pl-0.5 pr-2.5"
-                            >
-                              {member.photoPath ? (
-                                <div className="relative h-6 w-6 overflow-hidden rounded-full bg-slate-200">
-                                  <Image
-                                    src={member.photoPath}
-                                    alt={member.photoAlt}
-                                    fill
-                                    sizes="24px"
-                                    className={`object-cover ${member.objectPosition}`}
-                                  />
-                                </div>
-                              ) : (
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 font-mono text-[9px] font-bold text-white">
-                                  {getInitials(member.name)}
-                                </div>
-                              )}
-                              <span className="text-[11px] font-medium text-slate-800">
-                                {member.name}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <span className="text-[11px] text-slate-400">
-                            {copy.noMembersInUnit}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Active Department Rights & Red-Flag Inspector */}
-            {activeDepartment && (
-              <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
-                <div className="flex flex-col justify-between gap-4 border-b border-slate-100 pb-4 md:flex-row md:items-center">
-                  <div>
-                    <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#D95D24]">
-                      {activeDepartment.code} · {copy.selectedDeptTag}
-                    </span>
-                    <h3 className="mt-0.5 text-lg font-semibold text-slate-950">
-                      {activeDepartment.title} — {activeDepartment.location}
-                    </h3>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={activeDepartment.portalStageHref}
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-900"
-                    >
-                      {activeDepartment.portalStageLabel} →
-                    </Link>
-                    <Link
-                      href={activeDepartment.portalRedFlagHref}
-                      className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#D95D24]"
-                    >
-                      {activeDepartment.portalRedFlagLabel} →
-                    </Link>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-4">
-                    <span className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-rose-900">
-                      {copy.priorityTitle}
-                    </span>
-                    <p className="mt-1.5 text-xs leading-relaxed text-slate-800">
-                      {activeDepartment.redFlagFocus}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-4">
-                    <span className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-900">
-                      {copy.recordsTitle}
-                    </span>
-                    <ul className="mt-1.5 space-y-1.5 text-xs text-slate-800">
-                      {activeDepartment.whatToDocument.map((doc) => (
-                        <li key={doc} className="flex gap-2">
-                          <span className="font-mono text-emerald-700">✓</span>
-                          <span>{doc}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* 3. LinkedIn-Style Team Member Profile Grid + Collaborative Add Role */}
+      {/* 2. LinkedIn-Style Team Member Profile Grid */}
       <section className="border-b border-slate-200 bg-[#f8f9fa] py-14">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
@@ -659,14 +454,6 @@ export function AgencyTeamVisualizer({
                         <LinkedInIcon className="h-3.5 w-3.5" />
                         {member.linkedInButtonLabel} ↗
                       </a>
-
-                      <button
-                        type="button"
-                        onClick={() => handleSelectDeptFromOrg(member.departmentId)}
-                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:text-slate-950"
-                      >
-                        {copy.highlightUnitBtn}
-                      </button>
                     </div>
                   </article>
                 );
@@ -676,63 +463,11 @@ export function AgencyTeamVisualizer({
         </div>
       </section>
 
-      {/* 4. Department-to-Portal Dispute & Verification Matrix */}
-      <section className="bg-white py-14">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="max-w-3xl">
-            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-rose-700">
-              {copy.sec3Eyebrow}
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-              {copy.sec3Title}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              {copy.sec3Intro}
-            </p>
-          </div>
-
-          <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {bridges.map((bridge) => (
-              <div
-                key={bridge.department}
-                className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-4"
-              >
-                <div>
-                  <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-[#D95D24]">
-                    {bridge.stageCode}
-                  </span>
-                  <h3 className="mt-1 text-sm font-semibold text-slate-950">
-                    {bridge.department}
-                  </h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-                    {bridge.focus}
-                  </p>
-                  <p className="mt-2 font-mono text-[10px] font-semibold text-slate-500">
-                    {bridge.lawRef}
-                  </p>
-                </div>
-
-                <div className="mt-4 flex flex-col gap-1.5 border-t border-slate-200 pt-3">
-                  <Link
-                    href={bridge.primaryHref}
-                    className="inline-flex items-center justify-between rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[#D95D24]"
-                  >
-                    <span>{bridge.primaryLabel}</span>
-                    <span aria-hidden="true">→</span>
-                  </Link>
-                  <Link
-                    href={bridge.secondaryHref}
-                    className="inline-flex items-center justify-between rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 transition-colors hover:border-slate-900"
-                  >
-                    <span>{bridge.secondaryLabel}</span>
-                    <span aria-hidden="true">→</span>
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <CollaboratingCompaniesSlider
+        agencySlug={agency.slug}
+        agencyName={agency.name}
+        sectionClassName="bg-white py-14"
+      />
 
       <MemberPhotoModal
         member={inspectedMember}

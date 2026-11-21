@@ -1,4 +1,4 @@
-import type { Locale } from "@/components/LanguageProvider";
+import type { Locale } from "./types";
 
 export interface PreSigningCheckItem {
   id: string;
@@ -17,13 +17,6 @@ export interface DepartmentRedFlagItem {
   summary: string;
   demandInWriting: string;
   escalateTo: string;
-}
-
-export interface EscalationRowItem {
-  issue: string;
-  law: string;
-  evidence: string;
-  bodies: string[];
 }
 
 export const PRE_SIGNING_CHECKS_BY_LOCALE: Record<
@@ -277,295 +270,6 @@ export const DEPARTMENT_RED_FLAGS_BY_LOCALE: Record<
   ],
 };
 
-export const ESCALATION_ROWS_BY_LOCALE: Record<Locale, EscalationRowItem[]> = {
-  nl: [
-    {
-      issue: "Terugwerkende Looninhouding / Verrekening",
-      law: "Art. 7:632 BW (verrekeningsverbod), art. 7:625 BW (tot 50% wettelijke verhoging), WAS",
-      evidence:
-        "Opeenvolgende wekelijkse loonstroken, bankafschriften, schriftelijk bezwaar",
-      bodies: [
-        "Nederlandse Arbeidsinspectie",
-        "SNCU",
-        "Het Juridisch Loket / Advocaat",
-      ],
-    },
-    {
-      issue: "Vervoer & Terugvordering Brandstofvergoeding",
-      law: "Art. 7:611 BW (goed werkgeverschap), art. 7:632 BW, ABU/NBBU CAO reiskosten, WAS",
-      evidence:
-        "Maanden aan loonstroken met brandstofvergoeding, min-loonstrook, tankbonnen, vervoersberichten",
-      bodies: [
-        "SNCU",
-        "Nederlandse Arbeidsinspectie",
-        "Het Juridisch Loket / Advocaat",
-      ],
-    },
-    {
-      issue: "Loonschaal / Inlenersbeloning Komt Niet Overeen",
-      law: "ABU / NBBU CAO (inlenersbeloning), Waadi art. 8",
-      evidence:
-        "Vacaturetekst, getekend contract, functieomschrijving inlener, urenstaten",
-      bodies: ["SNCU", "Het Juridisch Loket", "FairWork"],
-    },
-    {
-      issue: "Geen Planning, Telefoon Genegeerd & Onbetaalde Garantie-uren",
-      law: "Art. 7:628 BW (loondoorbetaling bij geen planning), Arbowet (kosteloze PBM's), ABU/NBBU CAO",
-      evidence:
-        "Contract met urengarantie, onbeantwoorde bel-/chatlogs, schriftelijke beschikbaarheidsmail, kostenbonnen",
-      bodies: [
-        "SNCU",
-        "Het Juridisch Loket / Advocaat",
-        "Nederlandse Arbeidsinspectie",
-      ],
-    },
-    {
-      issue: "Vakantie-uren in de Min i.p.v. ADV-uren Gebruikt",
-      law: "Art. 7:638 BW (vakantie op verzoek), art. 7:628 BW (werkgeversrisico), art. 7:632 BW, ABU/NBBU CAO (ADV)",
-      evidence:
-        "Loonstroken met ADV- en vakantie-urensaldo, inlenerroosters, schriftelijk bezwaar tegen min-uren",
-      bodies: [
-        "SNCU",
-        "Het Juridisch Loket / Advocaat",
-        "Nederlandse Arbeidsinspectie",
-      ],
-    },
-    {
-      issue: "Ondermaatse Huisvesting (Ongedierte, Schimmel, Veiligheid)",
-      law: "SNF-norm (Stichting Normering Flexwonen), WAS 25%-huurplafond",
-      evidence:
-        "Gedateerde foto's van gebreken (zonder gezichten), onderhoudsmeldingen, huurinhoudingen",
-      bodies: ["SNF", "Nederlandse Arbeidsinspectie", "Gemeente"],
-    },
-    {
-      issue: "Bedreiging, Paspoortinname of Strafbare Fraude",
-      law: "Wetboek van Strafrecht, Wetgeving Arbeidsuitbuiting",
-      evidence:
-        "Bewaarde berichten, data/locaties, getuigenverklaringen, contractkopieën",
-      bodies: ["Politie", "Nederlandse Arbeidsinspectie", "FairWork"],
-    },
-  ],
-  en: [
-    {
-      issue: "Retroactive Wage Deduction / Clawback",
-      law: "BW Art. 7:632 (set-off limits), BW Art. 7:625 (up to 50% late-pay uplift), WAS",
-      evidence:
-        "Consecutive weekly payslips (loonstroken), bank deposits, written objection",
-      bodies: [
-        "Nederlandse Arbeidsinspectie",
-        "SNCU",
-        "Het Juridisch Loket / Employment Lawyer",
-      ],
-    },
-    {
-      issue: "Transport & Retroactive Fuel Allowance Clawback",
-      law: "BW Art. 7:611 (good employership), BW Art. 7:632 (set-off ban), ABU/NBBU CAO reiskostenvergoeding, WAS",
-      evidence:
-        "Months of payslips showing paid fuel/travel allowance, clawback payslip, fuel receipts, written car/transport messages",
-      bodies: [
-        "SNCU",
-        "Nederlandse Arbeidsinspectie",
-        "Het Juridisch Loket / Employment Lawyer",
-      ],
-    },
-    {
-      issue: "Pay Scale / Host-Company Parity Mismatch",
-      law: "ABU / NBBU CAO (inlenersbeloning), Waadi Art. 8",
-      evidence:
-        "Job offer, signed contract, host-company role description, shift records",
-      bodies: ["SNCU", "Het Juridisch Loket", "FairWork"],
-    },
-    {
-      issue: "No Planning, Ignored Calls & Unpaid Guaranteed Hours",
-      law: "BW Art. 7:628 (employer pay duty when unscheduled), Arbowet (free PPE/gear), ABU/NBBU CAO",
-      evidence:
-        "Contract hours guarantee, unanswered call/chat logs, written availability notice, personal gear/car receipts",
-      bodies: [
-        "SNCU",
-        "Het Juridisch Loket / Employment Lawyer",
-        "Nederlandse Arbeidsinspectie",
-      ],
-    },
-    {
-      issue: "Holiday Hours Put on Minus Instead of Using ADV Hours",
-      law: "BW Art. 7:638 (worker leave consent), BW Art. 7:628 (employer work risk), BW Art. 7:632, ABU/NBBU CAO ADV",
-      evidence:
-        "Weekly payslips showing ADV vs. negative vakantie-uren balance, host schedules, written objection",
-      bodies: [
-        "SNCU",
-        "Het Juridisch Loket / Employment Lawyer",
-        "Nederlandse Arbeidsinspectie",
-      ],
-    },
-    {
-      issue: "Substandard Housing (Pests, Rats, Mold, Safety)",
-      law: "SNF-norm (Stichting Normering Flexwonen), WAS 25% housing-deduction cap",
-      evidence:
-        "Timestamped condition photos (no faces), written maintenance tickets, rent deductions",
-      bodies: [
-        "SNF",
-        "Nederlandse Arbeidsinspectie",
-        "Local Municipality (Gemeente)",
-      ],
-    },
-    {
-      issue: "Threats, Document Confiscation, or Criminal Fraud",
-      law: "Dutch Criminal Code (Wetboek van Strafrecht), Labor Exploitation Statutes",
-      evidence:
-        "Preserved messages, dates/locations, witness notes, identity/contract copies",
-      bodies: ["Politie", "Nederlandse Arbeidsinspectie", "FairWork"],
-    },
-  ],
-};
-
-export interface OnboardingDutyItem {
-  id: string;
-  title: string;
-  lawTag: string;
-  agencyDuty: string;
-  commonLieOrAbuse: string;
-  proofToSue: string;
-  optionalCheckUrl: string;
-  optionalCheckLabel: string;
-}
-
-export const ONBOARDING_DUTIES_BY_LOCALE: Record<Locale, OnboardingDutyItem[]> = {
-  nl: [
-    {
-      id: "duty-honest-offer",
-      title: "1. Eerlijke Voorwaarden Vóór Vertrek (Niet Lokken met Valse Beloften)",
-      lawTag: "Art. 7:655 BW · EU-Richtlijn 2019/1152",
-      agencyDuty:
-        "Bureaus die mensen uit het buitenland halen moeten vóór vertrek schriftelijk en in begrijpelijke taal het exacte bruto uurloon, garantie-uren, woonkosten en vervoersregels geven.",
-      commonLieOrAbuse:
-        "Beloften via chat/advertentie blijken bij aankomst onwaar: lagere loonschaal, verborgen inhoudingen of weigering om vooraf het contract te sturen.",
-      proofToSue:
-        "Bewaar vacature-advertenties, WhatsApp/e-mailberichten en het contract dat je pas op het kantoor kreeg.",
-      optionalCheckUrl: "https://www.kvk.nl/waadi/",
-      optionalCheckLabel: "Optioneel: KvK Waadi-check ↗",
-    },
-    {
-      id: "duty-onboarding-guidance",
-      title: "2. Goede Begeleiding & Instructie op het Onboardingkantoor (Niet Laten Vallen)",
-      lawTag: "Art. 7:611 BW (Goed Werkgeverschap) · Waadi",
-      agencyDuty:
-        "Het onboardingkantoor moet nieuwkomers van buiten Nederland echt begeleiden: duidelijke uitleg over BSN, bankrekening, zorgverzekering, veiligheid, loonstrook en werktijden zonder tijdsdruk.",
-      commonLieOrAbuse:
-        "Mensen snel laten tekenen op een tablet zonder vertaling, liegen over tankpas/reiskosten, en daarna zeggen 'dat had je zelf moeten lezen' terwijl geld wordt gestolen.",
-      proofToSue:
-        "Noteer datum/tijd van onboarding, vraag alle uitleg per e-mail ter bevestiging en maak foto's van elk getekend blad.",
-      optionalCheckUrl: "https://www.normeringarbeid.nl/register-normering-arbeid",
-      optionalCheckLabel: "Optioneel: SNA-register ↗",
-    },
-    {
-      id: "duty-equal-pay-adv",
-      title: "3. Gelijke Beloning (Inlenersbeloning), ADV-uren & Volledig Loon",
-      lawTag: "ABU / NBBU CAO · Art. 7:632 & 7:638 BW · WAS",
-      agencyDuty:
-        "Uitbetaling van exact hetzelfde loon, toeslagen, reiskosten en ADV-uren als vaste medewerkers bij het bedrijf — zonder eenzijdige terugvorderingen of negatieve vakantie-uren.",
-      commonLieOrAbuse:
-        "Na maanden brandstof of uurloon plotseling geld terughalen als 'interne fout', of vakantie-uren in de min zetten i.p.v. ADV-uren om werknemers onder schuld vast te zetten.",
-      proofToSue:
-        "Alle opeenvolgende loonstroken vanaf week 1, bankafschriften en schriftelijk bezwaar (art. 7:625 BW geeft tot 50% extra bij te laat betalen).",
-      optionalCheckUrl: "https://www.abu.nl/leden/",
-      optionalCheckLabel: "Optioneel: ABU-leden ↗",
-    },
-    {
-      id: "duty-planning-gear",
-      title: "4. Werkende Planning, Garantie-uren & Kosteloze Werkmiddelen",
-      lawTag: "Art. 7:628 BW · Arbowet",
-      agencyDuty:
-        "Zorgen voor werk of doorbetaling van garantie-uren, bereikbaar blijven aan de telefoon en gratis werkkleding, schoenen (PBM's) en gereedschap verstrekken.",
-      commonLieOrAbuse:
-        "Telefoons negeren, mensen zonder werk en zonder loon in dure huisvesting laten verhongeren terwijl huurschuld oploopt, of eigen auto/telefoon/gereedschap verplichten.",
-      proofToSue:
-        "Screenshots van onbeantwoorde oproepen, directe beschikbaarheidsmail ('beschikbaar voor werk') en bonnetjes van eigen middelen.",
-      optionalCheckUrl: "https://www.nbbu.nl/nl/leden",
-      optionalCheckLabel: "Optioneel: NBBU-leden ↗",
-    },
-    {
-      id: "duty-housing-no-street",
-      title: "5. Veilige SNF-Huisvesting & Niemand Zonder Geld op Straat Dumpen",
-      lawTag: "SNF-norm · WAS 25%-grens · Openbare Orde",
-      agencyDuty:
-        "Alleen SNF-gecertificeerde, schone en ratten-/schimmelvrije kamers aanbieden (max. 25% WML-inhouding), klachten snel oplossen en nooit dreigen met straatuitzetting bij loonvragen.",
-      commonLieOrAbuse:
-        "Mensen ziek maken in onhygiënische kamers, huur blijven inhouden zonder loon, of werknemers met €0 op straat zetten — wat leidt tot honger, wanhoop en stijgende criminaliteit in Europa.",
-      proofToSue:
-        "Gedateerde foto's/video's (zonder gezichten), onbeantwoorde reparatietickets, loonstroken en aangifte/melding bij SNF, Politie & Arbeidsinspectie.",
-      optionalCheckUrl: "https://www.normeringflexwonen.nl/register",
-      optionalCheckLabel: "Optioneel: SNF-register ↗",
-    },
-  ],
-  en: [
-    {
-      id: "duty-honest-offer",
-      title: "1. Honest Written Terms Before Travel (Stop Luring With Fake Offers)",
-      lawTag: "BW Art. 7:655 · EU Directive 2019/1152",
-      agencyDuty:
-        "Agencies recruiting people from outside the Netherlands must give exact gross hourly pay, guaranteed hours, rent cost, and transport rules in writing and in a language you understand BEFORE travel.",
-      commonLieOrAbuse:
-        "Job ads or recruiter chats promise higher pay and free travel, then on arrival the contract drops the pay scale, hides deductions, or they refuse to send the contract before departure.",
-      proofToSue:
-        "Save job ads, WhatsApp/email screenshots, and the late contract handed to you only at the Dutch office.",
-      optionalCheckUrl: "https://www.kvk.nl/waadi/",
-      optionalCheckLabel: "Optional: KvK Waadi Lookup ↗",
-    },
-    {
-      id: "duty-onboarding-guidance",
-      title: "2. Proper Guidance & Instruction at the Onboarding Office (Never Abandon)",
-      lawTag: "BW Art. 7:611 (Good Employership) · Waadi",
-      agencyDuty:
-        "Onboarding staff have a duty to properly guide & instruct incoming workers on BSN, bank setup, health insurance, safety rules, payslips, and work schedules—without pressure or lies.",
-      commonLieOrAbuse:
-        "Rushing workers to tap-sign digital Dutch tablets without translation, lying about fuel cards or deductions, and later blaming the worker while taking money off net pay.",
-      proofToSue:
-        "Log onboarding date/time, confirm every verbal promise by email, and photograph/download every signed page immediately.",
-      optionalCheckUrl: "https://www.normeringarbeid.nl/register-normering-arbeid",
-      optionalCheckLabel: "Optional: SNA Register ↗",
-    },
-    {
-      id: "duty-equal-pay-adv",
-      title: "3. Host-Company Pay Parity (Inlenersbeloning), ADV Hours & Full Wages",
-      lawTag: "ABU / NBBU CAO · BW Art. 7:632 & 7:638 · WAS",
-      agencyDuty:
-        "Pay the exact host-company rate, allowances, travel parity, and ADV hours—with zero retroactive 'mistake' clawbacks and zero negative vakantie-uren debt traps.",
-      commonLieOrAbuse:
-        "Paying fuel or wages for weeks/months then suddenly deducting hundreds/thousands as an 'internal error', or booking statutory holiday hours into minus instead of ADV hours.",
-      proofToSue:
-        "All consecutive payslips from Week 1, bank deposit statements, and a written objection (BW Art. 7:625 adds up to 50% penalty on late pay).",
-      optionalCheckUrl: "https://www.abu.nl/leden/",
-      optionalCheckLabel: "Optional: ABU Members ↗",
-    },
-    {
-      id: "duty-planning-gear",
-      title: "4. Active Planning, Guaranteed Hours & Free Work Gear/PPE",
-      lawTag: "BW Art. 7:628 · Arbowet",
-      agencyDuty:
-        "Schedule shifts or pay guaranteed weekly hours, answer worker calls, and provide mandatory PPE, safety shoes, tools, and work comms free of charge.",
-      commonLieOrAbuse:
-        "Ignoring phone calls, leaving workers sitting in agency housing with zero shifts and zero pay while rent debt grows, or forcing use of personal car, phone, and tools.",
-      proofToSue:
-        "Unanswered call/message screenshots, written availability email ('beschikbaar voor werk'), and personal equipment receipts.",
-      optionalCheckUrl: "https://www.nbbu.nl/nl/leden",
-      optionalCheckLabel: "Optional: NBBU Members ↗",
-    },
-    {
-      id: "duty-housing-no-street",
-      title: "5. Safe SNF Housing & Never Dumping Workers on the Street With €0",
-      lawTag: "SNF-norm · WAS 25% Cap · Public Safety",
-      agencyDuty:
-        "Provide certified, pest-free, safe housing (rent capped at 25% of minimum wage only with SNF + written consent), fix defects fast, and never threaten eviction for questioning pay.",
-      commonLieOrAbuse:
-        "Keeping workers in rat/mold rooms, deducting rent with €0 pay, or kicking people onto the street broke—fueling hunger, desperation, and rising criminality across Europe.",
-      proofToSue:
-        "Timestamped condition photos/videos (no faces), ignored repair tickets, payslips, and reports to SNF, Politie & Arbeidsinspectie.",
-      optionalCheckUrl: "https://www.normeringflexwonen.nl/register",
-      optionalCheckLabel: "Optional: SNF Register ↗",
-    },
-  ],
-};
-
 export const UI_TEXT = {
   nl: {
     navbar: {
@@ -573,10 +277,10 @@ export const UI_TEXT = {
       spotlight: "Teams & Vragen",
       community: "Stemmen & Reacties",
       schematic: "Stappenplan",
-      verify: "Rode Vlaggen & Plichten",
+      verify: "Rode Vlaggen",
       agencies: "Bureaus & Teams",
       agenciesMobile: "Bureaus",
-      lawyer: "Advocaat & Instanties",
+      lawyer: "Instanties",
       objection: "Geld Terug Brief",
       reports: "Meldingen",
       phaseBadge: "Community · Geen Bedrijf",
@@ -596,7 +300,7 @@ export const UI_TEXT = {
       agenciesLink: "Bureaus & Teams Gids",
       backPortal: "← Hoofdportaal",
       allAgencies: "← Alle Bureaus",
-      redFlagsLink: "Rode Vlaggen & Plichten",
+      redFlagsLink: "Rode Vlaggen",
       phaseNote: "Community Bewijsplatform · NL & EU",
     },
     home: {
@@ -607,8 +311,8 @@ export const UI_TEXT = {
       h1Highlight: "geld, rechten & menselijke waardigheid",
       h1Suffix: " terug.",
       introBefore:
-        "Wij zijn geen bedrijf dat iets verkoopt — dit is een open community-platform waar werknemers in heel Europa corrupte uitzendbureau-praktijken blootleggen, de situatie uitleggen & bewijzen, stemmen en reacties bundelen, en rechtstreeks aanpakken via ",
-      introAnd: " of de rechter.",
+        "Stop uitzendbureau-praktijken blootleggen, de situatie uitleggen & bewijzen, stemmen en reacties bundelen, en rechtstreeks aanpakken via ",
+      introAnd: ".",
       valuesBadges: [
         "1. Menselijke Behoeften Eerst",
         "2. Pak Je Geld Terug",
@@ -665,11 +369,6 @@ export const UI_TEXT = {
       principleLabel: "MISSIE:",
       principleBody:
         "Geen winstoogmerk of adviesbureau: wij maken zichtbaar welke afdelingen en teams misbruik plegen zodat bureaus gedwongen worden eerlijk te handelen, en geven jou kant-en-klare bewijzen en formulieren om te procederen.",
-      heroLedgerTitle: "Live Database Bewijsstand (Alleen Echte Ingediende Cijfers)",
-      heroStolenLabel: "Gestolen / Terug Te Betalen",
-      heroCasesLabel: "Echte Zaken",
-      heroVotesLabel: "Stemmen & Bevestigingen",
-      heroCommentsLabel: "Community Reacties",
     },
     agencySpotlight: {
       eyebrow: "01 · Visualiseer Bureauteams, Misstanden & Bevestigingsvragen",
@@ -817,90 +516,6 @@ export const UI_TEXT = {
       ],
     },
     europeSpotlight: {
-      eyebrow: "03 · Community Hub · Stemmen, Polls, Reacties & Officiële Aanvragen",
-      badge: "Collectieve Bewijskracht · NL & Brussel",
-      heading:
-        "Community Stemmen, Polls & Reacties — Zodat We Echt Kunnen Indienen bij Officiële Instanties",
-      intro:
-        "Alleen sta je zwak; samen vormen onze stemmen, polls, meldingen en reacties een onweerlegbaar collectief dossier voor de Nederlandse Arbeidsinspectie, SNCU, SNF, Politie, rechtbanken en Europese instellingen in Brussel.",
-      pillars: [
-        {
-          code: "STAP 1 · STEMMEN & POLLS",
-          title: "Prioriteit voor Inspecties",
-          detail:
-            "Laat instanties in cijfers zien welke misstanden (loondiefstal, straatuitzetting, nep-min-uren) als eerste keihard aangepakt moeten worden.",
-          linkLabel: "Stem Hieronder ↓",
-          href: "/#community-polls",
-        },
-        {
-          code: "STAP 2 · REACTIES & GETUIGEN",
-          title: "Deel Ervaringen & Bevestig",
-          detail:
-            "Schrijf feitelijke reacties per bureau en bevestig elkaars ervaringen ('Mij ook overkomen') om patronen te bewijzen.",
-          linkLabel: "Plaats Reactie ↓",
-          href: "/#community-comments",
-        },
-        {
-          code: "STAP 3 · NEDERLANDSE FORMULIEREN",
-          title: "Arbeidsinspectie, SNCU & Politie",
-          detail:
-            "Download het complete community-dossier (.txt) en dien direct in bij de Nederlandse toezichthouders en politie.",
-          linkLabel: "Bekijk Instanties ↓",
-          href: "/#authorities",
-        },
-        {
-          code: "STAP 4 · BRUSSEL & EU (ELA)",
-          title: "Stop Misbruik in Heel Europa",
-          detail:
-            "Escaleer grensoverschrijdende uitbuiting en straatcriminaliteit door foute bureaus naar ELA, EU-Commissie, SOLVIT en PETI.",
-          linkLabel: "EU Kanalen ↓",
-          href: "/#brussels-channels",
-        },
-      ],
-      attributionLabel: "Onafhankelijk Community Platform (Geen Bedrijf)",
-      defaultSignature:
-        "Open Arbeidersplatform — Alleen bedoeld om corrupte bureaus tot eerlijkheid te dwingen en feiten door te sturen naar Politie, Arbeidsinspectie, SNCU, SNF & EU.",
-      socialTag: "Bewezen Veldrealiteit · Openbare Orde & Veiligheid",
-      socialTitle:
-        "Loon Inhouden & Op Straat Dumpen Veroorzaakt Direct Criminaliteit in Europa",
-      socialBody:
-        "Dit gebeurt aantoonbaar op straat: wanneer uitzendbureaus loon inhouden, uren in de min zetten of buitenlandse werknemers zonder geld, eten of reisticket op straat laten staan, raken mensen acuut wanhopig. Uit pure overlevingsnood worden mensen richting wetsovertredingen en straatcriminaliteit geduwd. Het stoppen van corrupte uitzendbureaus beschermt niet alleen werknemersrechten, maar voorkomt direct vermijdbare criminaliteit in Europese steden.",
-      emergencyHeading: "Directe noodhulp (voedsel, juridisch & politie):",
-      emergencyLinks: [
-        {
-          label: "Rode Kruis Voedselhulp ↗",
-          href: "https://www.rodekruis.nl/onderwerpen/voedselhulp-in-nederland/",
-        },
-        {
-          label: "Voedselbanken NL ↗",
-          href: "https://voedselbankennederland.nl",
-        },
-        {
-          label: "FairWork NL ↗",
-          href: "https://www.fairwork.nu/",
-        },
-        {
-          label: "Het Juridisch Loket ↗",
-          href: "https://www.juridischloket.nl/",
-        },
-        {
-          label: "Politie Aangifte / Melding ↗",
-          href: "https://www.politie.nl/aangifte-of-melding-doen",
-        },
-      ],
-      minusLedgerTitle: "Totaal Ingehouden / In de Min (Community Bewijs)",
-      minusLedgerSub:
-        "Gemelde loon-/brandstofinhoudingen & betwiste bedragen voor instanties",
-      casesCountLabel: "Zaken",
-      votesFlagsLabel: "Stemmen & Vlaggen",
-      commentsCountLabel: "Reacties",
-      quizConfirmsLabel: "Vraag-Bevestigingen",
-      brusselsHeading:
-        "1 Europa · Dien In bij Europees Parlement, ELA, België, Duitsland & NL",
-      brusselsSub:
-        "Alleen interne Nederlandse loketten zijn vaak niet genoeg — instanties en bureaus werken soms langs elkaar heen of adviseurs vragen vooraf geld terwijl jouw loon is gestolen. Bundel ons bewijs als 1 Europa en dien in bij het Europees Parlement (PETI) voor een EU-breed vacatureverbod en marktuitzetting, plus grensoverschrijdende inspecties in NL, België (SIOD) en Duitsland (Zoll).",
-      exportBrusselsBtn:
-        "Download Collectief 1-Europa & Instantie Dossier (.txt)",
       poll1Title: "Poll 1 · Welke Misstand Moet Direct Gestopt Worden?",
       poll2Title: "Poll 2 · Nationale & Grensoverschrijdende Actie (NL / BE / DE)",
       poll3Title: "Poll 3 · Europees Parlement & Brussel Actie (1 Europa)",
@@ -1017,7 +632,7 @@ export const UI_TEXT = {
       commentNetworkError: "Fout bij opslaan van reactie.",
     },
     stage: {
-      eyebrow: "05 · Verklaar & Bewijs · Volledig Stappenplan van het Uitzendtraject",
+      eyebrow: "06 · Verklaar & Bewijs · Volledig Stappenplan van het Uitzendtraject",
       heading: "Begrijp Precies Hoe Ze Sjoemelen — en Welk Bewijs Hen Verslaat",
       intro:
         "Elk misbruik door een Nederlands uitzendbureau vindt plaats in een van deze 6 fasen — van valse werving en slordige onboarding tot planning, brandstofinhouding, loonstrook en huisvesting. Klik op een fase om de wet, de rode vlaggen en het winnende bewijs te zien.",
@@ -1029,52 +644,16 @@ export const UI_TEXT = {
       redFlagsHeading: "Rode Vlaggen om Te Bewijzen",
     },
     verify: {
-      eyebrow: "04 · Bewaar Alle Rode Vlaggen om Te Procederen + Bureauplichten",
-      heading:
-        "Rode Vlaggen per Afdeling (Voor Je Rechtszaak) & Wat Bureaus Verplicht Moeten Doen",
+      eyebrow: "05 · Bewaar Alle Rode Vlaggen om Te Procederen",
+      heading: "Rode Vlaggen per Afdeling (Bewijs Voor Je Rechtszaak)",
       intro:
         "Buitenlandse werknemers horen niet vooraf zelf complexe overheidsregisters te hoeven doorzoeken voordat ze solliciteren: het bureau en het onboardingkantoor hebben de wettelijke plicht om mensen goed te begeleiden, te instrueren, niet voor te liegen en niet te stelen. Bewaar alle rode vlaggen hieronder om ze aan te klagen.",
       ctaTitle: "Bekijk Bureaus, Teams & Org-kaarten",
       ctaSub: "Vergelijk teams & voorkom samen misstanden →",
       demandLabel: "Bewijs voor Rechtszaak / Inspectie",
       routeLabel: "Meld & Dien In Bij:",
-      dutiesEyebrow: "Geen Zware Voorbereiding voor de Werknemer — Dit Is Hun Wettelijke Plicht",
-      dutiesTitle:
-        "Wat Uitzendbureaus Verplicht Moeten Doen Vanaf Buitenland & Onboardingkantoor (Niet Liegen & Niet Stelen)",
-      dutiesSub:
-        "Kruis per plicht aan of jouw bureau eerlijk heeft gehandeld of heeft gelogen/overtreden. Zo bouw je direct bewijs voor inspectie en advocaat.",
-      dutiesKeptBtn: "Bureau Hield Zich Eraan ✓",
-      dutiesBrokeBtn: "Gelogen / Overtreden 🚩",
-      dutiesScoreLabel: "Overtredingen Gemarkeerd:",
-      dutiesLabel: "Wettelijke plicht van het bureau:",
-      lieLabel: "Veelvoorkomende leugen / diefstal:",
-      proofLabel: "Bewijs om aan te klagen:",
-      checksDone: "Overtredingen Gemarkeerd",
     },
     lawyer: {
-      eyebrow: "06 · Bewijsmatrix voor Advocaten, Politie & Rechters",
-      heading: "Van Bewijs naar Rechtszaak, Politie & Officiële Handhaving",
-      intro:
-        "Zodat Nederlandse arbeidsrechtadvocaten, de Arbeidsinspectie, SNCU en Politie elk geschil direct kunnen koppelen aan wetsartikelen, vereist bewijs en boetes.",
-      ctaButton: "Stel Dossier / Zaakmelding Op →",
-      node1Tag: "STAP 1 · JOUW BEWIJS",
-      node1Title: "1. Chronologische Feiten & Loonstroken",
-      node1Desc:
-        "Data, gewerkte weken, exacte euro's in de min, onbeantwoorde bel-logs en woningfoto's — feitelijk en controleerbaar.",
-      node2Tag: "STAP 2 · WETTELIJKE GROND",
-      node2Title: "2. Koppeling aan Wet & CAO",
-      node2Desc:
-        "Koppelt jouw vordering direct aan BW (art. 7:632 / 7:625 / 7:628 / 7:638 / 7:655), WAS, Arbowet, ABU/NBBU CAO of SNF.",
-      node3Tag: "STAP 3 · AANPAKKEN & PROCEDEREN",
-      node3Title: "3. Indienen bij Instanties of Rechter",
-      node3Desc:
-        "Exporteer je zaak- en community-dossier met één klik voor Arbeidsinspectie, SNCU, SNF, Politie of een advocaat.",
-      colIssue: "Misstand / Rode Vlag",
-      colLaw: "Nederlands Recht / Wetsartikel om Te Procederen",
-      colEvidence: "Bewijs om Mee Te Nemen",
-      colBodies: "Officiële Instanties & Formulieren",
-      disclaimer:
-        "Informatief juridisch overzicht — laat formele dagvaardingen en vaststellingsovereenkomsten altijd controleren door Het Juridisch Loket of een arbeidsrechtadvocaat.",
       authEyebrow: "07 · Officiële Nationale & Europese Instanties (NL · BE · DE · EU)",
       authHeading: "Meld Grensoverschrijdend — En Pas Op Voor Betaalde of Passieve Loketten",
       authIntro:
@@ -1085,7 +664,7 @@ export const UI_TEXT = {
       primaryBadge: "Hoofdinstantie",
     },
     objection: {
-      eyebrow: "08 · Pak Je Geld Terug · Privé Sommatiebrief / Bezwaar Generator",
+      eyebrow: "02 · Pak Je Geld Terug · Privé Sommatiebrief / Bezwaar Generator",
       heading:
         "Genereer Direct Een Formele Sommatiebrief (Eis Je Loon, Brandstof & Vakantie-uren Terug)",
       intro:
@@ -1117,7 +696,7 @@ export const UI_TEXT = {
       downloadBtn: "Download .txt",
     },
     reports: {
-      eyebrow: "09 · Gedocumenteerde Zaken & Zaakmeldingen",
+      eyebrow: "03 · Gedocumenteerde Zaken & Zaakmeldingen",
       heading: "Openbaar Bewijsoverzicht & Eigen Zaak Toevoegen",
       intro:
         "Feitelijke zaken van werknemers met exacte eurobedragen in de min, tijdlijnen en vlaggen — exporteer elk dossier rechtstreeks voor Arbeidsinspectie, SNCU, Politie of advocaat.",
@@ -1208,17 +787,7 @@ export const UI_TEXT = {
       flaggedBrusselsBtn: "Gemarkeerd ✓",
     },
     agenciesDir: {
-      pill: "Samenwerking Meerdere Bureaus · Fraudepreventie",
-      title: "Uitzendbureaus & Aparte Teampagina's",
-      intro:
-        "Omdat uitzendkrachten en begeleiders samenwerken over meerdere Nederlandse uitzendbureaus, krijgt elk bureau een eigen overzichtspagina. Vergelijk teamstructuren, controleer KvK/SNA/SNF-registers en deel feitelijke informatie om misstanden en oplichting te voorkomen.",
       addCta: "+ Nog een Bureau / Team Toevoegen",
-      verifyCta: "Pre-Signing Controlelijst →",
-      statsTitle: "Overzicht Gids",
-      trackedAgencies: "Bureaus in Gids",
-      teamProfiles: "Teamprofielen",
-      statsNote:
-        "Elk bureau opent op een eigen aparte pagina met een eigen organigram en profieloverzicht in LinkedIn-stijl.",
       section1Eyebrow: "01 · Bureaus & Teams Gids",
       section1Title: "Kies een Bureau om de Teampagina te Bekijken",
       searchPlaceholder:
@@ -1275,9 +844,17 @@ export const UI_TEXT = {
       createdLink: "Open Aparte Bureaupagina voor",
       submitBtn: "Maak Aparte Bureaupagina Aan",
       submittingBtn: "Bureaupagina Aanmaken...",
-      pillarsEyebrow: "02 · Gezamenlijk Anti-Fraude Protocol",
-      pillarsTitle:
-        "Hoe Meerdere Teams & Werknemers Samen Misstanden Voorkomen",
+      sliderEyebrow: "02 · Samenwerkende Warehouses & Opdrachtgevers (Inleners)",
+      sliderTitle:
+        "Bedrijven & Magazijnen Waar Nederlandse Uitzendbureaus Personeel Plaatsen",
+      sliderIntro:
+        "Verken logistieke centra, magazijnen en opdrachtgevers (zoals Fetim Group in Amsterdam en Paxon nabij Rotterdam) om bedrijfswebsites en verplichte inlenersbeloning (Waadi art. 8) te controleren.",
+      sliderFilterAll: "Alle",
+      sliderPrevLabel: "Vorige bedrijven",
+      sliderNextLabel: "Volgende bedrijven",
+      companySiteBtn: "Website",
+      sliderNote:
+        "Feitelijk overzicht van logistieke en operationele opdrachtgevers in Nederland voor controle van loonschalen en reiskosten (inlenersbeloning); vermelding betekent geen beschuldiging tegen het bedrijf zelf.",
     },
     agencyVisualizer: {
       allAgencies: "Alle Bureaus",
@@ -1299,23 +876,7 @@ export const UI_TEXT = {
       factualTitle: "Feitelijke Profielstandaard:",
       factualBody:
         "Openbare functietitels zijn gebaseerd op publieke bedrijfsvermeldingen; niet-bevestigde rollen blijven gemarkeerd als Neutraal · Functie Onbevestigd in plaats van gegokt.",
-      sec1Eyebrow: "01 · Visuele Bureau-architectuur",
-      sec1Title: "Interactief Team- & Afdelingsorganigram",
-      sec1Intro:
-        "Klik op een afdeling hieronder om te zien wie binnen dat onderdeel van het bureau werkt, de profielkaarten te filteren en direct naar de bijbehorende Nederlandse arbeidsrecht-checks te springen.",
-      showAllProfiles: "Toon Alle",
-      profilesSuffix: "Profielen",
-      orgRootSub: "Hoofdkantoor Bureau",
-      orgRootSuffix: "— Organisatiestructuur",
-      orgRootHint:
-        "Klik op een afdeling hieronder voor taken en rode-vlaglinks",
-      personSingular: "persoon",
-      personPlural: "personen",
-      noMembersInUnit: "Nog geen personen in deze unit vermeld",
-      selectedDeptTag: "Geselecteerde Afdeling",
-      priorityTitle: "Prioriteit voor Werknemerscontrole",
-      recordsTitle: "Schriftelijke Bewijzen om te Bewaren",
-      sec2Eyebrow: "02 · Mensen & Profielen in LinkedIn-stijl",
+      sec2Eyebrow: "01 · Mensen & Profielen in LinkedIn-stijl",
       sec2TitleSuffix: "Teamoverzicht",
       ofWord: "van",
       sec2Intro:
@@ -1356,40 +917,8 @@ export const UI_TEXT = {
       resetFilters: "Filters Wissen",
       zoomPhoto: "Vergroot Foto",
       relatedGuideLabel: "Bijbehorende Rechten- & Controlegids",
-      highlightUnitBtn: "Markeer Unit",
-      sec3Eyebrow: "03 · Afdelingen → Bescherming voor Uitzendkrachten",
-      sec3Title:
-        "Spring Direct van Elke Afdeling naar Jouw Controlelijst",
-      sec3Intro:
-        "Bij elk Nederlands uitzendbureau gelden wettelijke regels per operationele afdeling. Gebruik deze snelkoppelingen om registers te checken, een bezwaarbrief op te stellen of een melding vast te leggen.",
       closeBtn: "Sluiten ✕",
     },
-    scamPillars: [
-      {
-        code: "CHECK 01",
-        title: "Identiteit & KvK Waadi-controle",
-        detail:
-          "Nep-recruiters kopiëren soms namen van bestaande bureaus of werken zonder Waadi-registratie. Controleer altijd de exacte rechtspersoon bij de KvK voordat je ID-kopieën stuurt.",
-        href: "/#verify-agency",
-        cta: "Check Waadi & SNA →",
-      },
-      {
-        code: "CHECK 02",
-        title: "Schriftelijke Inlenersbeloning & Brandstofregels",
-        detail:
-          "Vergelijk wat tijdens werving wordt beloofd met wat de salarisadministratie uitbetaalt. Eis de geldende inlenersbeloning en reiskostenregeling zwart-op-wit vóór dag 1.",
-        href: "/#objection-letter",
-        cta: "Stel Bezwaarbrief Op →",
-      },
-      {
-        code: "CHECK 03",
-        title: "SNF-huisvesting & 25% Huurplafond",
-        detail:
-          "Controleer of de huisvester een actief SNF-certificaat heeft vóór je huurinhouding toestaat, en bewaar gedateerde onderhoudsmeldingen bij gebreken.",
-        href: "/#submit-report",
-        cta: "Meld Feitelijke Zaak →",
-      },
-    ],
   },
   en: {
     navbar: {
@@ -1397,10 +926,10 @@ export const UI_TEXT = {
       spotlight: "Teams & Quiz",
       community: "Votes & Comments",
       schematic: "Explain & Prove",
-      verify: "Red Flags & Duties",
+      verify: "Red Flags",
       agencies: "Agencies & Teams",
       agenciesMobile: "Agencies",
-      lawyer: "Lawyers & Institutes",
+      lawyer: "Institutes",
       objection: "Money Back Letter",
       reports: "Reports",
       phaseBadge: "Community · Not a Company",
@@ -1420,7 +949,7 @@ export const UI_TEXT = {
       agenciesLink: "Agencies & Teams Directory",
       backPortal: "← Main Portal",
       allAgencies: "← All Agencies",
-      redFlagsLink: "Red Flags & Duties",
+      redFlagsLink: "Red Flags",
       phaseNote: "Community Evidence Platform · NL & EU",
     },
     home: {
@@ -1431,8 +960,8 @@ export const UI_TEXT = {
       h1Highlight: "money, rights & human dignity",
       h1Suffix: ".",
       introBefore:
-        "We are not a company trying to sell you anything — this is an open community platform where workers expose corrupt agency teams & practices, explain & prove what happened, collect votes and comments, and escalate straight to ",
-      introAnd: ", or court.",
+        "Expose corrupt agency teams & practices, explain & prove what happened, collect votes and comments, and escalate straight to ",
+      introAnd: ".",
       valuesBadges: [
         "1. Human Needs First",
         "2. Take Your Money Back",
@@ -1489,11 +1018,6 @@ export const UI_TEXT = {
       principleLabel: "PLATFORM PURPOSE:",
       principleBody:
         "Not a business—just worker solidarity and undeniable proof: we highlight corrupt agency departments and practices to force fairness and send ready-made dossiers & forms straight to official institutes.",
-      heroLedgerTitle: "Live Database Ledger (100% Real User Submissions Only)",
-      heroStolenLabel: "Stolen / Needs Reimbursement",
-      heroCasesLabel: "Real Cases Filed",
-      heroVotesLabel: "Votes & Confirmations",
-      heroCommentsLabel: "Community Comments",
     },
     agencySpotlight: {
       eyebrow: "01 · Visualize Agency Teams, Corrupt Patterns & Confirmation Questions",
@@ -1641,90 +1165,6 @@ export const UI_TEXT = {
       ],
     },
     europeSpotlight: {
-      eyebrow: "03 · Community Hub · Votes, Polls, Comments & Official Applications",
-      badge: "Collective Community Power · NL & Brussels",
-      heading:
-        "Community Votes, Polls & Comments — Building Undeniable Proof to Apply to Official Institutes",
-      intro:
-        "One worker alone is easily ignored. Together, our live polls, agency flags, community comments, and documented euro losses create an undeniable collective dossier ready to submit straight to Nederlandse Arbeidsinspectie, SNCU, SNF, Politie, courts, and Brussels.",
-      pillars: [
-        {
-          code: "STEP 1 · VOTES & POLLS",
-          title: "Rank Top Violations",
-          detail:
-            "Vote on which abuses (wage theft, street abandonment, minus holiday hours) and which official institute actions must happen first.",
-          linkLabel: "Vote Below ↓",
-          href: "/#community-polls",
-        },
-        {
-          code: "STEP 2 · COMMENTS & CONFIRMATIONS",
-          title: "Share & Confirm Together",
-          detail:
-            "Post factual comments per agency and click 'Happened to me too' so authorities see patterns, not isolated complaints.",
-          linkLabel: "Read & Comment ↓",
-          href: "/#community-comments",
-        },
-        {
-          code: "STEP 3 · DUTCH OFFICIAL FORMS",
-          title: "Arbeidsinspectie, SNCU & Politie",
-          detail:
-            "Download the complete collective community package (.txt) and submit straight to Dutch inspectors, police & legal aid.",
-          linkLabel: "Open Institutes ↓",
-          href: "/#authorities",
-        },
-        {
-          code: "STEP 4 · BRUSSELS & EU (ELA)",
-          title: "Stop Cross-Border Abuse",
-          detail:
-            "Escalate systemic exploitation and street-destitution crime risks to ELA, European Commission, SOLVIT & EP PETI.",
-          linkLabel: "EU Channels ↓",
-          href: "/#brussels-channels",
-        },
-      ],
-      attributionLabel: "Independent Community Platform (Not a Company)",
-      defaultSignature:
-        "Open Worker Solidarity Platform — Exists solely to expose corrupt staffing practices, force fairness, and feed verified evidence & forms to Politie, Arbeidsinspectie, SNCU, SNF & EU.",
-      socialTag: "Documented Field Reality · Public Safety & Crime Prevention",
-      socialTitle:
-        "Withholding Wages & Dumping Workers on Streets Fuels Rising Criminality Across Europe",
-      socialBody:
-        "This is 100% happening on the ground: when staffing agencies steal wages, fake negative leave balances, or leave international workers stranded on foreign streets with €0, no food, and no transport home, people face instant survival desperation. Forced onto the street with nothing, some are pushed into breaking the law just to survive—driving up preventable street crime across European cities. Stopping corrupt agencies protects workers AND public safety.",
-      emergencyHeading: "Immediate human-needs aid (food, legal & police):",
-      emergencyLinks: [
-        {
-          label: "Red Cross NL Food Aid ↗",
-          href: "https://www.rodekruis.nl/onderwerpen/voedselhulp-in-nederland/",
-        },
-        {
-          label: "Food Banks NL ↗",
-          href: "https://voedselbankennederland.nl",
-        },
-        {
-          label: "FairWork NL ↗",
-          href: "https://www.fairwork.nu/",
-        },
-        {
-          label: "Het Juridisch Loket ↗",
-          href: "https://www.juridischloket.nl/",
-        },
-        {
-          label: "Politie Reporting / Aangifte ↗",
-          href: "https://www.politie.nl/aangifte-of-melding-doen",
-        },
-      ],
-      minusLedgerTitle: "Total Stolen / On Minus (Community Proof)",
-      minusLedgerSub:
-        "Documented retroactive wage/fuel deductions & disputed sums for institutes",
-      casesCountLabel: "Cases",
-      votesFlagsLabel: "Votes & Flags",
-      commentsCountLabel: "Comments",
-      quizConfirmsLabel: "Quiz Confirms",
-      brusselsHeading:
-        "1 Europe · Escalate to European Parliament, ELA, Belgium, Germany & NL",
-      brusselsSub:
-        "Relying only on internal national offices is not enough—corrupt agencies and local networks protect each other, and paid legal desks ask workers for money right after their wages were stolen. Unite as 1 Europe: export our collective proof and file with the European Parliament (PETI) to ban their job postings and expel repeat offenders from the EU market, alongside Belgium (SIOD), Germany (Zoll), and ELA.",
-      exportBrusselsBtn:
-        "Download Collective 1-Europe & Institute Dossier (.txt)",
       poll1Title: "Poll 1 · Which Abuse Must Official Institutes Stop First?",
       poll2Title: "Poll 2 · National & Cross-Border Action (NL / BE / DE)",
       poll3Title: "Poll 3 · European Parliament & Brussels Action (1 Europe)",
@@ -1841,7 +1281,7 @@ export const UI_TEXT = {
       commentNetworkError: "Network error while saving comment.",
     },
     stage: {
-      eyebrow: "05 · Explain & Prove · End-to-End Employment Lifecycle Schematic",
+      eyebrow: "06 · Explain & Prove · End-to-End Employment Lifecycle Schematic",
       heading: "Understand Exactly How They Trick Workers — and What Proof Beats Them",
       intro:
         "Every dispute with a Dutch staffing agency happens at one or more of these 6 stages—from fake recruitment offers and rushed onboarding to planning, fuel clawbacks, payslips, and housing. Click any stage to inspect the exact law, red flags, and evidence to sue them.",
@@ -1853,52 +1293,16 @@ export const UI_TEXT = {
       redFlagsHeading: "Red Flags to Prove & Escalate",
     },
     verify: {
-      eyebrow: "04 · Keep All Red Flags to Sue Them + Agency Onboarding Duties",
-      heading:
-        "Department Red Flags (Proof to Sue Them) & What Agencies Must Do Instead of Lying & Stealing",
+      eyebrow: "05 · Keep All Red Flags to Sue Them",
+      heading: "Department Red Flags (Proof to Sue Them)",
       intro:
         "Workers traveling from abroad shouldn't have to run heavy pre-application bureaucracy checks before even applying: it is the agency's and onboarding office's duty to guide, instruct, translate, and protect people—and NOT lie or steal. Keep every red flag below so you can sue them and report to authorities.",
       ctaTitle: "Browse Agencies, Teams & Org Maps",
       ctaSub: "Compare agency teams & expose patterns together →",
       demandLabel: "Proof to Sue / Report",
       routeLabel: "Report & File With:",
-      dutiesEyebrow: "No Heavy Worker Homework — This Is the Agency's Legal Job",
-      dutiesTitle:
-        "What Agencies Must Legally Do From Abroad & at the Onboarding Office (Don't Lie & Don't Steal)",
-      dutiesSub:
-        "Mark whether your agency actually guided you fairly or lied / violated its duty. Every violation below is actionable proof for inspectors and courts.",
-      dutiesKeptBtn: "Agency Kept Duty ✓",
-      dutiesBrokeBtn: "Agency Lied / Broke Rule 🚩",
-      dutiesScoreLabel: "Violations Marked:",
-      dutiesLabel: "Agency's legal duty:",
-      lieLabel: "Common lie / theft:",
-      proofLabel: "Proof to sue them:",
-      checksDone: "Violations Marked",
     },
     lawyer: {
-      eyebrow: "06 · Evidence Architecture for Lawyers, Politie & Courts",
-      heading: "Legal Routing & Proof to Sue Corrupt Agencies",
-      intro:
-        "Structured so Dutch employment lawyers (arbeidsrechtadvocaten), Arbeidsinspectie, SNCU, and Politie can immediately classify every violation by statute, winning proof, and official complaint channel.",
-      ctaButton: "Log a Case & Export Brief →",
-      node1Tag: "STEP 1 · YOUR PROOF",
-      node1Title: "1. Factual Timeline & Payslips",
-      node1Desc:
-        "Dates, weeks worked, exact euros withheld/on minus, unanswered call logs, and condition photos—clean and verifiable.",
-      node2Tag: "STEP 2 · LAW TO SUE",
-      node2Title: "2. Statutory & CAO Grounds",
-      node2Desc:
-        "Links each theft or onboarding lie straight to BW (Art. 7:632 / 7:625 / 7:628 / 7:638 / 7:655), WAS, Arbowet, ABU/NBBU CAO, or SNF.",
-      node3Tag: "STEP 3 · OFFICIAL FILING",
-      node3Title: "3. Submit to Institutes & Court",
-      node3Desc:
-        "Exports standardized briefs with one click to file directly with Arbeidsinspectie, SNCU, SNF, Politie, or employment counsel.",
-      colIssue: "Abuse / Red-Flag Pattern",
-      colLaw: "Dutch Law / Statute to Sue Them",
-      colEvidence: "Key Evidence That Wins",
-      colBodies: "Official Institutes & Forms",
-      disclaimer:
-        "Informational legal framework overview only — always verify court deadlines, demand letters (sommatiebrief), and settlement waivers with Het Juridisch Loket or a Dutch employment lawyer.",
       authEyebrow: "07 · Official Cross-Border & National Institutes (NL · BE · DE · EU)",
       authHeading: "Apply Across 1 Europe — Beware Passive or Fee-Charging Desks",
       authIntro:
@@ -1909,7 +1313,7 @@ export const UI_TEXT = {
       primaryBadge: "Primary Body",
     },
     objection: {
-      eyebrow: "08 · Take Your Money Back · Private Demand Letter Generator",
+      eyebrow: "02 · Take Your Money Back · Private Demand Letter Generator",
       heading:
         "Draft a Formal Dutch Wage, Fuel & Holiday-Hours Demand Letter (Sommatiebrief)",
       intro:
@@ -1941,7 +1345,7 @@ export const UI_TEXT = {
       downloadBtn: "Download .txt",
     },
     reports: {
-      eyebrow: "09 · Documented Cases & Case Submission",
+      eyebrow: "03 · Documented Cases & Case Submission",
       heading: "Worker Case Feed & Legal Dossier Builder",
       intro:
         "Factual case logs showing exact withheld euro totals, timelines, and community flags—ready to copy or download for Dutch authorities, Politie, and lawyers.",
@@ -2030,17 +1434,7 @@ export const UI_TEXT = {
       flaggedBrusselsBtn: "Confirmed ✓",
     },
     agenciesDir: {
-      pill: "Multi-Agency Collaboration · Scam-Prevention Directory",
-      title: "Uitzendbureau Agencies & Separate Team Pages",
-      intro:
-        "Because temp workers and advocates collaborate across multiple Dutch staffing agencies, each uitzendbureau gets its own dedicated team visualization page. Compare organizational structures, verify official KvK/SNA/SNF registrations, and share factual verification notes to avoid recruitment, wage, or housing scams.",
       addCta: "+ Add Another Agency / Team",
-      verifyCta: "Pre-Signing Verification Checklist →",
-      statsTitle: "Directory Overview",
-      trackedAgencies: "Tracked Agencies",
-      teamProfiles: "Team Profiles",
-      statsNote:
-        "Each agency opens on its own separate /agencies/[slug] page with its own org chart and LinkedIn-style roster.",
       section1Eyebrow: "01 · Agency Team Directory",
       section1Title: "Select an Agency to View Its Team Page",
       searchPlaceholder: "Search agency name, city, sector, or team member...",
@@ -2096,9 +1490,17 @@ export const UI_TEXT = {
       createdLink: "Open Separate Page for",
       submitBtn: "Create Separate Agency Page",
       submittingBtn: "Creating Agency Page...",
-      pillarsEyebrow: "02 · Collaborative Anti-Scam Protocol",
-      pillarsTitle:
-        "How Multiple Teams & Workers Prevent Staffing Scams Together",
+      sliderEyebrow: "02 · Collaborating Warehouses & Host Companies (Inleners)",
+      sliderTitle:
+        "Warehouses & Companies Where Dutch Staffing Agencies Place Workers",
+      sliderIntro:
+        "Browse logistics centers, distribution hubs, and host companies (such as Fetim Group in Amsterdam and Paxon in the Rotterdam corridor) to verify official company sites and host-company pay parity (inlenersbeloning under Waadi Art. 8).",
+      sliderFilterAll: "All",
+      sliderPrevLabel: "Previous companies",
+      sliderNextLabel: "Next companies",
+      companySiteBtn: "Website",
+      sliderNote:
+        "Factual reference directory of Dutch host warehouses and logistics companies where agency placements occur so workers can verify CAO pay parity (inlenersbeloning)—inclusion does not imply wrongdoing by the host company.",
     },
     agencyVisualizer: {
       allAgencies: "All Agencies",
@@ -2120,23 +1522,7 @@ export const UI_TEXT = {
       factualTitle: "Factual Directory Standard:",
       factualBody:
         "Public titles reflect open corporate records; unconfirmed roles remain marked Neutral · Title Unverified rather than guessed.",
-      sec1Eyebrow: "01 · Visual Agency Architecture",
-      sec1Title: "Interactive Team & Department Org Map",
-      sec1Intro:
-        "Select any department node below to see who sits in that unit of the agency, filter the profile cards, and jump to the matching Dutch labor-law verification guide.",
-      showAllProfiles: "Show All",
-      profilesSuffix: "Profiles",
-      orgRootSub: "Agency Headquarters",
-      orgRootSuffix: "— Uitzendbureau Structure",
-      orgRootHint:
-        "Click any unit below to inspect responsibilities & red-flag links",
-      personSingular: "person",
-      personPlural: "people",
-      noMembersInUnit: "No members listed in this unit yet",
-      selectedDeptTag: "Selected Department Focus",
-      priorityTitle: "Worker Verification Priority",
-      recordsTitle: "Written Records to Keep",
-      sec2Eyebrow: "02 · People & LinkedIn-Style Profiles",
+      sec2Eyebrow: "01 · People & LinkedIn-Style Profiles",
       sec2TitleSuffix: "Team Roster",
       ofWord: "of",
       sec2Intro:
@@ -2176,39 +1562,7 @@ export const UI_TEXT = {
       resetFilters: "Reset Filters",
       zoomPhoto: "Zoom Photo",
       relatedGuideLabel: "Related Portal Verification Guide",
-      highlightUnitBtn: "Highlight Unit",
-      sec3Eyebrow: "03 · Agency Departments → Worker Safeguards",
-      sec3Title:
-        "Jump Straight from Any Agency Desk to Your Rights Checklist",
-      sec3Intro:
-        "Across any Dutch uitzendbureau, statutory rules apply per operational desk. Use these shortcuts to check official registers, draft formal written objections, or log a structured report.",
       closeBtn: "Close ✕",
     },
-    scamPillars: [
-      {
-        code: "CHECK 01",
-        title: "Cross-Agency Identity & KvK Waadi",
-        detail:
-          "Fake recruiters often clone real agency names or operate without Waadi registration. Always verify the exact legal entity in KvK before sending ID copies.",
-        href: "/#verify-agency",
-        cta: "Check Waadi & SNA →",
-      },
-      {
-        code: "CHECK 02",
-        title: "Written Inlenersbeloning & Fuel Policy",
-        detail:
-          "Compare what recruiters promise abroad vs. what payroll actually pays. Demand written host-company pay parity and written fuel/commute terms before Day 1.",
-        href: "/#objection-letter",
-        cta: "Draft Written Objection →",
-      },
-      {
-        code: "CHECK 03",
-        title: "SNF Housing & 25% Deduction Cap",
-        detail:
-          "Verify the housing provider holds an active SNF certificate before allowing rent deductions, and preserve timestamped maintenance logs if defects occur.",
-        href: "/#submit-report",
-        cta: "Log Factual Report →",
-      },
-    ],
   },
 } as const;

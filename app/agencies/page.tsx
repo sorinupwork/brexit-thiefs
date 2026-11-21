@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AgenciesDirectory } from "@/components/AgenciesDirectory";
+import { AgenciesDirectory } from "@/components/agencies/AgenciesDirectory";
 import { AGENCIES } from "@/lib/agency-team";
 
 export const metadata: Metadata = {

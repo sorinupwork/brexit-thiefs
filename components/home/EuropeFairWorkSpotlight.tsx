@@ -1,20 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   confirmCommentAction,
   createCommentAction,
 } from "@/actions/comments";
 import { submitVoteAction } from "@/actions/votes";
-import { useLanguage } from "@/components/LanguageProvider";
+import { useLanguage } from "@/components/layout/LanguageProvider";
 import {
-  formatBrusselsAggregatedBrief,
-  getLocalizedBrusselsChannels,
   getLocalizedComment,
   getLocalizedCommentTopicLabel,
 } from "@/lib/i18n-data";
 import { UI_TEXT } from "@/lib/i18n-ui";
+import { sumVoteMap } from "@/lib/ledger-utils";
 import type {
   BrusselsActionOptionId,
   CommentTopicId,
@@ -23,7 +21,6 @@ import type {
   PollState,
   RedFlagPollOptionId,
   UserVotesState,
-  WorkerReport,
 } from "@/lib/types";
 import {
   mergeUniqueIds,
@@ -35,7 +32,6 @@ import {
 } from "@/lib/client-storage";
 
 interface EuropeFairWorkSpotlightProps {
-  initialReports: WorkerReport[];
   initialPolls: PollState;
   initialComments: CommunityComment[];
   initialUserVotes: UserVotesState;
@@ -53,16 +49,13 @@ const COMMENT_TOPICS: CommentTopicId[] = [
 ];
 
 export function EuropeFairWorkSpotlight({
-  initialReports,
   initialPolls,
   initialComments,
   initialUserVotes,
 }: EuropeFairWorkSpotlightProps) {
   const { locale } = useLanguage();
   const copy = UI_TEXT[locale].europeSpotlight;
-  const brusselsChannels = getLocalizedBrusselsChannels(locale);
 
-  const [reports, setReports] = useState<WorkerReport[]>(initialReports);
   const [polls, setPolls] = useState<PollState>(initialPolls);
   const [comments, setComments] = useState<CommunityComment[]>(initialComments);
   const [userVotes, updateUserVotes] = useSyncedUserVotes(initialUserVotes);
@@ -104,76 +97,30 @@ export function EuropeFairWorkSpotlight({
   );
 
   useEffect(() => {
-    function onReportAdded(e: Event) {
-      const custom = e as CustomEvent<WorkerReport>;
-      if (!custom.detail) return;
-      setReports((prev) =>
-        prev.some((r) => r.id === custom.detail.id)
-          ? prev
-          : [custom.detail, ...prev]
-      );
-    }
     function onPollsUpdated(e: Event) {
       const custom = e as CustomEvent<PollState>;
       if (!custom.detail) return;
       setPolls(custom.detail);
     }
-    window.addEventListener("werkrecht-report-added", onReportAdded);
     window.addEventListener("werkrecht-polls-updated", onPollsUpdated);
     return () => {
-      window.removeEventListener("werkrecht-report-added", onReportAdded);
       window.removeEventListener("werkrecht-polls-updated", onPollsUpdated);
     };
   }, []);
 
-  const totalMinusEur = useMemo(
-    () => reports.reduce((sum, r) => sum + (r.disputedAmountEur ?? 0), 0),
-    [reports]
-  );
-
   const totalRedFlagVotes = useMemo(
-    () =>
-      Object.values(polls.redFlagVotes).reduce((sum, count) => sum + count, 0),
+    () => sumVoteMap(polls.redFlagVotes),
     [polls.redFlagVotes]
   );
 
   const totalInstituteVotes = useMemo(
-    () =>
-      Object.values(polls.instituteActionVotes ?? {}).reduce(
-        (sum, count) => sum + count,
-        0
-      ),
+    () => sumVoteMap(polls.instituteActionVotes),
     [polls.instituteActionVotes]
   );
 
   const totalBrusselsVotes = useMemo(
-    () =>
-      Object.values(polls.brusselsActionVotes).reduce(
-        (sum, count) => sum + count,
-        0
-      ),
+    () => sumVoteMap(polls.brusselsActionVotes),
     [polls.brusselsActionVotes]
-  );
-
-  const totalCaseFlags = useMemo(
-    () =>
-      Object.values(polls.reportFlags).reduce((sum, count) => sum + count, 0),
-    [polls.reportFlags]
-  );
-
-  const totalAgencyFlags = useMemo(
-    () =>
-      Object.values(polls.agencyFlags ?? {}).reduce(
-        (sum, count) => sum + count,
-        0
-      ),
-    [polls.agencyFlags]
-  );
-
-  const totalCommentConfirmations = useMemo(
-    () =>
-      comments.reduce((sum, item) => sum + (item.confirmations ?? 0), 0),
-    [comments]
   );
 
   const localizedComments = useMemo(
@@ -221,13 +168,13 @@ export function EuropeFairWorkSpotlight({
           ? { kind: "red-flag", targetId: targetId as RedFlagPollOptionId }
           : kind === "institute-action"
             ? {
-              kind: "institute-action",
-              targetId: targetId as InstituteActionOptionId,
-            }
+                kind: "institute-action",
+                targetId: targetId as InstituteActionOptionId,
+              }
             : {
-              kind: "brussels-action",
-              targetId: targetId as BrusselsActionOptionId,
-            }
+                kind: "brussels-action",
+                targetId: targetId as BrusselsActionOptionId,
+              }
       );
 
       if (result.ok && result.polls) {
@@ -260,7 +207,6 @@ export function EuropeFairWorkSpotlight({
           mergeUniqueIds(confirmedComments, [commentId]),
           COMMENT_CONFIRM_EVENT
         );
-        window.dispatchEvent(new Event("werkrecht-comment-confirmed"));
       }
     } finally {
       setConfirmingCommentId(null);
@@ -295,7 +241,6 @@ export function EuropeFairWorkSpotlight({
       }
 
       setComments((prev) => [result.comment!, ...prev]);
-      window.dispatchEvent(new Event("werkrecht-comment-added"));
       setCommentCorridor("");
       setCommentAlias("");
       setCommentBody("");
@@ -308,153 +253,16 @@ export function EuropeFairWorkSpotlight({
     }
   }
 
-  function handleExportBrusselsDossier() {
-    const text = formatBrusselsAggregatedBrief(
-      reports,
-      polls,
-      locale,
-      comments
-    );
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `collective-1europe-institute-dossier-${locale}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  const totalAllVotes =
-    totalRedFlagVotes +
-    totalInstituteVotes +
-    totalBrusselsVotes +
-    totalCaseFlags +
-    totalAgencyFlags +
-    totalCommentConfirmations;
-
   return (
     <section
       id="community-action"
       className="scroll-mt-20 border-b border-slate-200 bg-slate-950 py-16 text-slate-100"
     >
       <div id="europe-fairness" className="mx-auto max-w-6xl px-4 sm:px-6">
-        {/* Header + Collective Community Evidence Counter */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-center">
-          <div className="lg:col-span-7">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs font-semibold uppercase tracking-widest text-amber-400">
-                {copy.eyebrow}
-              </span>
-              <span className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-emerald-200">
-                {copy.badge}
-              </span>
-            </div>
-            <h2 className="mt-2.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-              {copy.heading}
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-300 sm:text-base">
-              {copy.intro}
-            </p>
-          </div>
-
-          {/* Live Community Proof Counter Card */}
-          <div className="lg:col-span-5">
-            <div className="rounded-2xl border border-rose-500/40 bg-gradient-to-br from-rose-950/70 via-slate-900 to-slate-900 p-5 shadow-lg">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-rose-300">
-                  <span className="h-2 w-2 rounded-full bg-rose-500" />
-                  {copy.minusLedgerTitle}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleExportBrusselsDossier}
-                  className="rounded-lg border border-amber-400/50 bg-amber-500/20 px-3 py-1.5 font-mono text-[10px] font-semibold text-amber-200 transition-colors hover:bg-amber-500/30"
-                >
-                  {copy.exportBrusselsBtn}
-                </button>
-              </div>
-
-              <div className="mt-3 text-3xl font-bold tracking-tight text-rose-400 sm:text-4xl">
-                -€
-                {totalMinusEur.toLocaleString(
-                  locale === "nl" ? "nl-NL" : "en-IE"
-                )}
-              </div>
-              <p className="mt-1 text-xs text-slate-300">{copy.minusLedgerSub}</p>
-
-              <dl className="mt-4 grid grid-cols-2 gap-2.5 border-t border-slate-800 pt-3.5 sm:grid-cols-4">
-                <div className="rounded-xl bg-slate-950/70 p-2.5">
-                  <dt className="font-mono text-[10px] text-slate-400">
-                    {copy.casesCountLabel}
-                  </dt>
-                  <dd className="mt-0.5 text-base font-semibold text-white">
-                    {reports.length}
-                  </dd>
-                </div>
-                <div className="rounded-xl bg-slate-950/70 p-2.5">
-                  <dt className="font-mono text-[10px] text-slate-400">
-                    {copy.votesFlagsLabel}
-                  </dt>
-                  <dd className="mt-0.5 text-base font-semibold text-amber-300">
-                    {totalAllVotes}
-                  </dd>
-                </div>
-                <div className="rounded-xl bg-slate-950/70 p-2.5">
-                  <dt className="font-mono text-[10px] text-slate-400">
-                    {copy.commentsCountLabel}
-                  </dt>
-                  <dd className="mt-0.5 text-base font-semibold text-sky-300">
-                    {comments.length}
-                  </dd>
-                </div>
-                <div className="rounded-xl bg-slate-950/70 p-2.5">
-                  <dt className="font-mono text-[10px] text-slate-400">
-                    {copy.quizConfirmsLabel}
-                  </dt>
-                  <dd className="mt-0.5 text-base font-semibold text-rose-300">
-                    {polls.diagnosticConfirmations ?? 0}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-        </div>
-
-        {/* 4 Community Action Steps */}
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {copy.pillars.map((pillar) => (
-            <div
-              key={pillar.code}
-              className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-900/90 p-5 transition-colors hover:border-slate-700"
-            >
-              <div>
-                <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-[#F59E0B]">
-                  {pillar.code}
-                </span>
-                <h3 className="mt-1.5 text-base font-semibold text-white">
-                  {pillar.title}
-                </h3>
-                <p className="mt-2 text-xs leading-relaxed text-slate-300">
-                  {pillar.detail}
-                </p>
-              </div>
-
-              <Link
-                href={pillar.href}
-                className="mt-4 inline-flex items-center text-xs font-semibold text-amber-400 hover:underline"
-              >
-                {pillar.linkLabel}
-              </Link>
-            </div>
-          ))}
-        </div>
-
         {/* 3 Interactive Community Polls (Server Actions -> Data Store) */}
         <div
           id="community-polls"
-          className="mt-8 grid scroll-mt-24 grid-cols-1 gap-5 lg:grid-cols-3"
+          className="grid scroll-mt-24 grid-cols-1 gap-5 lg:grid-cols-3"
         >
           {/* Poll 1: Red Flags */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
@@ -486,10 +294,11 @@ export function EuropeFairWorkSpotlight({
                     type="button"
                     disabled={Boolean(votedRedFlag) || isBusy}
                     onClick={() => castPollVote("red-flag", opt.id)}
-                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${isSelected
+                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${
+                      isSelected
                         ? "border-rose-400 bg-rose-950/40"
                         : "border-slate-800 bg-slate-950/60 hover:border-slate-600"
-                      } disabled:cursor-default`}
+                    } disabled:cursor-default`}
                   >
                     <div
                       className="absolute inset-y-0 left-0 bg-rose-500/20 transition-all duration-300"
@@ -540,10 +349,11 @@ export function EuropeFairWorkSpotlight({
                     type="button"
                     disabled={Boolean(votedInstitute) || isBusy}
                     onClick={() => castPollVote("institute-action", opt.id)}
-                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${isSelected
+                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${
+                      isSelected
                         ? "border-emerald-400 bg-emerald-950/35"
                         : "border-slate-800 bg-slate-950/60 hover:border-slate-600"
-                      } disabled:cursor-default`}
+                    } disabled:cursor-default`}
                   >
                     <div
                       className="absolute inset-y-0 left-0 bg-emerald-500/20 transition-all duration-300"
@@ -594,10 +404,11 @@ export function EuropeFairWorkSpotlight({
                     type="button"
                     disabled={Boolean(votedBrussels) || isBusy}
                     onClick={() => castPollVote("brussels-action", opt.id)}
-                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${isSelected
+                    className={`relative w-full overflow-hidden rounded-xl border p-2.5 text-left transition-colors ${
+                      isSelected
                         ? "border-amber-400 bg-amber-950/30"
                         : "border-slate-800 bg-slate-950/60 hover:border-slate-600"
-                      } disabled:cursor-default`}
+                    } disabled:cursor-default`}
                   >
                     <div
                       className="absolute inset-y-0 left-0 bg-[#D95D24]/25 transition-all duration-300"
@@ -652,10 +463,11 @@ export function EuropeFairWorkSpotlight({
                       key={tag}
                       type="button"
                       onClick={() => setCommentFilter(tag)}
-                      className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${active
+                      className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${
+                        active
                           ? "border-amber-400 bg-amber-500 text-slate-950"
                           : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500"
-                        }`}
+                      }`}
                     >
                       {tag === "all"
                         ? `${copy.commentFilterAll} (${comments.length})`
@@ -724,10 +536,11 @@ export function EuropeFairWorkSpotlight({
                               isConfirmed || confirmingCommentId === comment.id
                             }
                             onClick={() => handleConfirmComment(comment.id)}
-                            className={`rounded-lg border px-2.5 py-1 font-mono text-[11px] font-semibold transition-colors ${isConfirmed
+                            className={`rounded-lg border px-2.5 py-1 font-mono text-[11px] font-semibold transition-colors ${
+                              isConfirmed
                                 ? "border-emerald-400/50 bg-emerald-500/20 text-emerald-200"
                                 : "border-slate-700 bg-slate-900 text-slate-200 hover:border-amber-400 hover:text-amber-300"
-                              }`}
+                            }`}
                           >
                             {isConfirmed
                               ? copy.commentConfirmedBtn
@@ -895,101 +708,6 @@ export function EuropeFairWorkSpotlight({
               </form>
             </div>
           </div>
-        </div>
-
-        {/* Field Reality: Street Abandonment Fuels Criminality Across Europe */}
-        <div className="mt-8 rounded-2xl border-2 border-rose-500/50 bg-gradient-to-br from-rose-950/50 via-slate-900 to-slate-900 p-5 sm:p-6">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-rose-300">
-            {copy.socialTag}
-          </span>
-          <h3 className="mt-1.5 text-lg font-semibold text-white sm:text-xl">
-            {copy.socialTitle}
-          </h3>
-          <p className="mt-2 max-w-4xl text-xs leading-relaxed text-slate-200 sm:text-sm">
-            {copy.socialBody}
-          </p>
-
-          <div className="mt-4 border-t border-slate-800 pt-4">
-            <span className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
-              {copy.emergencyHeading}
-            </span>
-            <div className="mt-2.5 flex flex-wrap gap-2">
-              {copy.emergencyLinks.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/20"
-                >
-                  {item.label}
-                </a>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 1 Europe Cross-Border Official Channels (EU Parliament PETI, ELA, Belgium, Germany, Commission) */}
-        <div
-          id="brussels-channels"
-          className="mt-8 scroll-mt-24 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6"
-        >
-          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-            <div className="max-w-3xl">
-              <h3 className="text-lg font-semibold text-white">
-                {copy.brusselsHeading}
-              </h3>
-              <p className="mt-1 text-xs leading-relaxed text-slate-300">
-                {copy.brusselsSub}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleExportBrusselsDossier}
-              className="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-amber-400"
-            >
-              {copy.exportBrusselsBtn}
-            </button>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {brusselsChannels.map((ch) => (
-              <div
-                key={ch.id}
-                className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/80 p-4"
-              >
-                <div>
-                  <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-sky-400">
-                    {ch.shortTag}
-                  </span>
-                  <h4 className="mt-1 text-sm font-semibold text-white">
-                    {ch.name}
-                  </h4>
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
-                    {ch.scope}
-                  </p>
-                </div>
-                <a
-                  href={ch.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 inline-flex items-center justify-center rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
-                >
-                  {ch.actionLabel}
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Open Community Mandate (Explicitly NOT a company) */}
-        <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
-            {copy.attributionLabel}
-          </span>
-          <p className="mt-1 text-sm font-semibold text-white">
-            {copy.defaultSignature}
-          </p>
         </div>
       </div>
     </section>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useLanguage } from "@/components/LanguageProvider";
+import { useLanguage } from "@/components/layout/LanguageProvider";
 import { UI_TEXT } from "@/lib/i18n-ui";
 
 export function SiteFooter() {

@@ -1,3 +1,5 @@
+export type Locale = "nl" | "en";
+
 export type IssueCategory =
   | "wage-deduction"
   | "transport-fuel"

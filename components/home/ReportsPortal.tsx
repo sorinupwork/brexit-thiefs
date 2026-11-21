@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createReportAction } from "@/actions/reports";
 import { submitVoteAction } from "@/actions/votes";
-import { useLanguage } from "@/components/LanguageProvider";
+import { useLanguage } from "@/components/layout/LanguageProvider";
 import { CATEGORY_META, EVIDENCE_LABELS, NL_REGIONS } from "@/lib/data";
 import {
   formatLocalizedLegalBrief,
@@ -25,6 +25,8 @@ import type {
   WorkerReport,
 } from "@/lib/types";
 import {
+  copyTextOrDownload,
+  downloadTextFile,
   mergeUniqueIds,
   useLocalStorageList,
   useSyncedUserVotes,
@@ -241,31 +243,24 @@ export function ReportsPortal({
   }
 
   async function handleCopyBrief(report: WorkerReport) {
-    try {
-      await navigator.clipboard.writeText(
-        formatLocalizedLegalBrief(report, locale)
-      );
+    const didCopy = await copyTextOrDownload(
+      formatLocalizedLegalBrief(report, locale),
+      `${report.caseNumber.toLowerCase()}-external-eu-brief.txt`
+    );
+    if (didCopy) {
       setCopiedId(report.id);
       setTimeout(
         () => setCopiedId((curr) => (curr === report.id ? null : curr)),
         2200
       );
-    } catch {
-      handleDownloadBrief(report);
     }
   }
 
   function handleDownloadBrief(report: WorkerReport) {
-    const text = formatLocalizedLegalBrief(report, locale);
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${report.caseNumber.toLowerCase()}-external-eu-brief.txt`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    downloadTextFile(
+      `${report.caseNumber.toLowerCase()}-external-eu-brief.txt`,
+      formatLocalizedLegalBrief(report, locale)
+    );
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -305,9 +300,6 @@ export function ReportsPortal({
       }
 
       setReports((prev) => [result.report!, ...prev]);
-      window.dispatchEvent(
-        new CustomEvent("werkrecht-report-added", { detail: result.report })
-      );
       setExpandedId(result.report.id);
       setTitle("");
       setAgencyName("");
@@ -331,7 +323,10 @@ export function ReportsPortal({
   }
 
   return (
-    <section id="reports" className="scroll-mt-20 bg-white py-16">
+    <section
+      id="reports"
+      className="scroll-mt-20 border-b border-slate-200 bg-white py-16"
+    >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
           {/* Left Column: External Case Feed */}
@@ -629,7 +624,7 @@ export function ReportsPortal({
 
           {/* Right Column: Submit External Case Report */}
           <div id="submit-report" className="scroll-mt-24 lg:col-span-5">
-            <div className="sticky top-24 rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-xs">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-xs lg:sticky lg:top-24">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-xs font-semibold uppercase tracking-wider text-[#D95D24]">
                   {copy.formTag}
@@ -999,7 +994,7 @@ export function ReportsPortal({
                               href={att.blobUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="truncate font-medium text-emerald-950 hover:underline"
+                              className="min-w-0 truncate font-medium text-emerald-950 hover:underline"
                             >
                               📎 {att.fileName}
                             </a>

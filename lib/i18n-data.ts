@@ -1,4 +1,4 @@
-import type { Locale } from "@/components/LanguageProvider";
+import type { Locale } from "./types";
 import {
   BRUSSELS_CHANNELS,
   CATEGORY_META,
@@ -17,15 +17,12 @@ import type {
   IssueCategory,
   LifecycleStageId,
   LifecycleStageInfo,
-  PollState,
   WorkerReport,
 } from "./types";
-import {
-  DEPARTMENT_DISPUTE_BRIDGES,
-  type AgencyDepartmentNode,
-  type AgencyRecord,
-  type AgencyTeamMember,
-  type DepartmentPortalBridge,
+import type {
+  AgencyDepartmentNode,
+  AgencyRecord,
+  AgencyTeamMember,
 } from "./agency-team";
 
 const CATEGORY_NL: Record<IssueCategory, { label: string; shortLabel: string }> = {
@@ -558,190 +555,6 @@ export function formatLocalizedLegalBrief(
   ].join("\n");
 }
 
-export function formatBrusselsAggregatedBrief(
-  reports: WorkerReport[],
-  polls: PollState,
-  locale: Locale,
-  comments: CommunityComment[] = []
-): string {
-  const totalMinusEur = reports.reduce(
-    (sum, r) => sum + (r.disputedAmountEur ?? 0),
-    0
-  );
-  const totalFlags = Object.values(polls.reportFlags).reduce(
-    (sum, v) => sum + v,
-    0
-  );
-  const totalAgencyFlags = Object.values(polls.agencyFlags ?? {}).reduce(
-    (sum, v) => sum + v,
-    0
-  );
-  const channels = getLocalizedBrusselsChannels(locale)
-    .map((c) => `  - ${c.name}: ${c.url}`)
-    .join("\n");
-  const nlInstitutes = getLocalizedAuthorities(locale)
-    .map((a) => `  - ${a.name}: ${a.url}`)
-    .join("\n");
-
-  const caseLines = reports
-    .map((raw) => {
-      const r = getLocalizedReport(raw, locale);
-      const minus =
-        r.disputedAmountEur !== null
-          ? `-EUR ${r.disputedAmountEur.toLocaleString(locale === "nl" ? "nl-NL" : "en-IE")}`
-          : "N/A";
-      const flags = polls.reportFlags[r.id] ?? 0;
-      return `  - [${r.caseNumber}] ${minus} | Flags: ${flags} | ${r.region}${r.agencyName ? ` | ${r.agencyName}` : ""} — ${r.title}`;
-    })
-    .join("\n");
-
-  const agencyFlagLines = Object.entries(polls.agencyFlags ?? {})
-    .map(([slug, count]) => `  - ${slug}: ${count}`)
-    .join("\n");
-
-  const commentLines = comments
-    .map((raw) => {
-      const c = getLocalizedComment(raw, locale);
-      return `  - [${c.agencyName} | ${c.topic} | +${c.confirmations} confirms] (${c.authorAlias}): ${c.body}`;
-    })
-    .join("\n");
-
-  if (locale === "nl") {
-    return [
-      "================================================================",
-      "COLLECTIEF COMMUNITY DOSSIER VOOR OFFICIELE INSTANTIES (NL + EU)",
-      "================================================================",
-      `Exportdatum:              ${new Date().toISOString().slice(0, 10)}`,
-      `Aantal feitelijke zaken:  ${reports.length}`,
-      `Totaal bedrag in de min:  -EUR ${totalMinusEur.toLocaleString("nl-NL")}`,
-      `Rode-vlag steun zaken:    ${totalFlags} markeringen`,
-      `Bureau rode-vlag stemmen: ${totalAgencyFlags} bevestigingen`,
-      `Vragenlijst bevestigingen:${polls.diagnosticConfirmations ?? 0}`,
-      `Community reacties/bewijs:${comments.length}`,
-      "",
-      "WAARSCHUWING OPENBARE ORDE & CRIMINALITEIT:",
-      "Wanneer uitzendbureaus loon inhouden, uren in de min zetten of werknemers",
-      "zonder geld en vervoer op straat zetten in een vreemd land, ontstaan acute",
-      "voedsel-/wooncrises en vermijdbare straatcriminaliteit in heel Europa.",
-      "",
-      "1. EXPAT & COMMUNITY STEMMING — TOP RODE VLAGGEN",
-      "----------------------------------------------------------------",
-      `  - Terugwerkende looninhouding ('interne fout'):   ${polls.redFlagVotes["retroactive-wage"]}`,
-      `  - Terugvordering 2+ mnd brandstof/reiskosten:     ${polls.redFlagVotes["fuel-clawback"]}`,
-      `  - Vakantie-uren in de min i.p.v. ADV-uren:       ${polls.redFlagVotes["adv-holiday-minus"]}`,
-      `  - Geen planning / calls genegeerd / eigen spullen: ${polls.redFlagVotes["unpaid-guarantee-benched"]}`,
-      `  - Lager contract bij aankomst vs. beloofd loon:   ${polls.redFlagVotes["contract-bait-switch"]}`,
-      `  - Ondermaatse SNF-huisvesting / >25% inhouding:   ${polls.redFlagVotes["snf-housing"]}`,
-      `  - Op straat gezet zonder geld (wanhoop & crime):  ${polls.redFlagVotes["street-abandonment"] ?? 0}`,
-      `  - Inhouden eindafrekening na klacht/bezwaar:      ${polls.redFlagVotes["withheld-final-pay"]}`,
-      `  - Racisme, discriminatie / ongelijke behandeling: ${polls.redFlagVotes["discrimination-unequal-treatment"]}`,
-      "",
-      "2. GEWENSTE ACTIE BIJ NEDERLANDSE INSTANTIES (STEMMING)",
-      "----------------------------------------------------------------",
-      `  - Arbeidsinspectie loon- & fraudeaudit:           ${polls.instituteActionVotes?.["arbeidsinspectie-audit"] ?? 0}`,
-      `  - SNCU CAO-controle & boete (inlenersbeloning):   ${polls.instituteActionVotes?.["sncu-cao-audit"] ?? 0}`,
-      `  - SNF & Gemeente huisvestingscontrole:            ${polls.instituteActionVotes?.["snf-housing-audit"] ?? 0}`,
-      `  - Politie melding dwang / fraude / straatnood:    ${polls.instituteActionVotes?.["politie-fraud-report"] ?? 0}`,
-      `  - Collectieve rechtszaak / advocaat-actie:        ${polls.instituteActionVotes?.["collective-lawsuit"] ?? 0}`,
-      "",
-      "3. GEWENSTE EXTERNE BRUSSEL / EU ACTIE (STEMMING)",
-      "----------------------------------------------------------------",
-      `  - ELA grensoverschrijdende inspectie:             ${polls.brusselsActionVotes["ela-inspection"]}`,
-      `  - Europese Commissie klacht (EU-recht):           ${polls.brusselsActionVotes["eu-commission-complaint"]}`,
-      `  - Europees Parlement petitie (PETI):              ${polls.brusselsActionVotes["ep-peti-petition"]}`,
-      `  - SOLVIT internemarkt-geschil:                    ${polls.brusselsActionVotes["solvit-network"]}`,
-      "",
-      "4. BUREAUS GEMARKEERD VOOR ONDERZOEK",
-      "----------------------------------------------------------------",
-      agencyFlagLines || "  - (Nog geen aparte bureaumarkeringen)",
-      "",
-      "5. GEREGISTREERDE ZAKEN & BEDRAGEN IN DE MIN",
-      "----------------------------------------------------------------",
-      caseLines,
-      "",
-      "6. COMMUNITY REACTIES & GETUIGENISSEN",
-      "----------------------------------------------------------------",
-      commentLines || "  - (Geen reacties)",
-      "",
-      "7. OFFICIELE NEDERLANDSE INSTANTIES & FORMULIEREN",
-      "----------------------------------------------------------------",
-      nlInstitutes,
-      "",
-      "8. EXTERNE BRUSSEL / EU MELDKANALEN",
-      "----------------------------------------------------------------",
-      channels,
-      "================================================================",
-    ].join("\n");
-  }
-
-  return [
-    "================================================================",
-    "COLLECTIVE COMMUNITY EVIDENCE DOSSIER FOR OFFICIAL INSTITUTES",
-    "================================================================",
-    `Export Date:               ${new Date().toISOString().slice(0, 10)}`,
-    `Documented Cases:          ${reports.length}`,
-    `Total Amount on Minus:     -EUR ${totalMinusEur.toLocaleString("en-IE")}`,
-    `Case Red-Flag Votes:       ${totalFlags} case flags`,
-    `Agency Red-Flag Flags:     ${totalAgencyFlags} agency flags`,
-    `Questionnaire Confirms:    ${polls.diagnosticConfirmations ?? 0}`,
-    `Community Comments:        ${comments.length}`,
-    "",
-    "PUBLIC SAFETY & RISING CRIME FACT:",
-    "When staffing agencies withhold earned pay, put holiday hours into minus,",
-    "or dump recruited workers onto foreign streets with EUR 0 and no transport home,",
-    "they create immediate hunger/shelter crises and push desperate people into",
-    "avoidable lawbreaking and rising street crime across Europe.",
-    "",
-    "1. COMMUNITY POLL — TOP RED FLAGS TO STOP FIRST",
-    "----------------------------------------------------------------",
-    `  - Retroactive wage clawbacks ('internal error'):  ${polls.redFlagVotes["retroactive-wage"]}`,
-    `  - 2-month fuel / commute cost clawbacks:          ${polls.redFlagVotes["fuel-clawback"]}`,
-    `  - Vakantie-uren put on minus instead of ADV hrs:  ${polls.redFlagVotes["adv-holiday-minus"]}`,
-    `  - Unplanned / ignored calls / forced personal gear: ${polls.redFlagVotes["unpaid-guarantee-benched"]}`,
-    `  - Lower contract scale on arrival vs. job offer:  ${polls.redFlagVotes["contract-bait-switch"]}`,
-    `  - Substandard SNF housing / >25% rent deduction:  ${polls.redFlagVotes["snf-housing"]}`,
-    `  - Dumped on street with EUR 0 (fueling crime):    ${polls.redFlagVotes["street-abandonment"] ?? 0}`,
-    `  - Withheld final pay / vakantiegeld on dispute:   ${polls.redFlagVotes["withheld-final-pay"]}`,
-    `  - Racism, discrimination / unequal treatment:     ${polls.redFlagVotes["discrimination-unequal-treatment"]}`,
-    "",
-    "2. PRIORITY DUTCH OFFICIAL INSTITUTE ACTIONS (POLL)",
-    "----------------------------------------------------------------",
-    `  - Nederlandse Arbeidsinspectie wage/fraud audit:  ${polls.instituteActionVotes?.["arbeidsinspectie-audit"] ?? 0}`,
-    `  - SNCU CAO parity audit & fine:                   ${polls.instituteActionVotes?.["sncu-cao-audit"] ?? 0}`,
-    `  - SNF & Municipality housing inspection:          ${polls.instituteActionVotes?.["snf-housing-audit"] ?? 0}`,
-    `  - Politie criminal fraud/coercion/street crisis:  ${polls.instituteActionVotes?.["politie-fraud-report"] ?? 0}`,
-    `  - Collective lawsuit / employment counsel prep:   ${polls.instituteActionVotes?.["collective-lawsuit"] ?? 0}`,
-    "",
-    "3. PRIORITY EXTERNAL BRUSSELS / EU ACTIONS (POLL)",
-    "----------------------------------------------------------------",
-    `  - ELA cross-border inspection request:            ${polls.brusselsActionVotes["ela-inspection"]}`,
-    `  - European Commission EU law breach complaint:    ${polls.brusselsActionVotes["eu-commission-complaint"]}`,
-    `  - European Parliament PETI petition:              ${polls.brusselsActionVotes["ep-peti-petition"]}`,
-    `  - SOLVIT cross-border EU rights case:             ${polls.brusselsActionVotes["solvit-network"]}`,
-    "",
-    "4. AGENCIES FLAGGED FOR OFFICIAL INVESTIGATION",
-    "----------------------------------------------------------------",
-    agencyFlagLines || "  - (No specific agency flags recorded yet)",
-    "",
-    "5. DOCUMENTED CASES & AMOUNTS ON MINUS",
-    "----------------------------------------------------------------",
-    caseLines,
-    "",
-    "6. COMMUNITY COMMENTS & WORKER VOICES",
-    "----------------------------------------------------------------",
-    commentLines || "  - (No comments recorded yet)",
-    "",
-    "7. OFFICIAL DUTCH INSTITUTES & REPORTING FORMS",
-    "----------------------------------------------------------------",
-    nlInstitutes,
-    "",
-    "8. EXTERNAL BRUSSELS / EU CHANNELS",
-    "----------------------------------------------------------------",
-    channels,
-    "================================================================",
-  ].join("\n");
-}
-
 const SEEDED_COMMENTS_NL: Record<
   string,
   Pick<CommunityComment, "authorAlias" | "body">
@@ -1182,67 +995,4 @@ export function getLocalizedAgency(
       };
     }),
   };
-}
-
-export function getLocalizedDisputeBridges(
-  locale: Locale
-): DepartmentPortalBridge[] {
-  if (locale === "en") return DEPARTMENT_DISPUTE_BRIDGES;
-  return [
-    {
-      department: "Wervingsdesk",
-      stageCode: "Fase 01",
-      focus:
-        "Schriftelijke vacature-afspraken, beloofd uurloon en verbod op bemiddelingskosten.",
-      lawRef: "Art. 7:655 BW · Waadi",
-      primaryHref: "/#verify-agency",
-      primaryLabel: "Rode Vlaggen Werving",
-      secondaryHref: "/#schematic",
-      secondaryLabel: "Gids Fase 01",
-    },
-    {
-      department: "Planning & Coördinatie",
-      stageCode: "Fase 02",
-      focus:
-        "ABU/NBBU CAO-fase, gelijke beloning (inlenersbeloning) en eigen urenstaten.",
-      lawRef: "ABU/NBBU CAO · Waadi art. 8",
-      primaryHref: "/#verify-agency",
-      primaryLabel: "Rode Vlaggen Planning",
-      secondaryHref: "/#lawyer-matrix",
-      secondaryLabel: "SNCU / Juridisch",
-    },
-    {
-      department: "Vervoer & Wagenpark",
-      stageCode: "Fase 03",
-      focus:
-        "Tankpasregels, €0,23/km reiskosten en het blokkeren van brandstof-terugvorderingen.",
-      lawRef: "Art. 7:611 BW · Art. 7:632 BW",
-      primaryHref: "/#objection-letter",
-      primaryLabel: "Bezwaarbrief Brandstof",
-      secondaryHref: "/#verify-agency",
-      secondaryLabel: "Rode Vlaggen Vervoer",
-    },
-    {
-      department: "Salarisadministratie",
-      stageCode: "Fase 04",
-      focus:
-        "Wekelijkse loonstroken, bescherming minimumloon en verbod op eenzijdige verrekening.",
-      lawRef: "Art. 7:632 · 7:625 BW · WAS",
-      primaryHref: "/#objection-letter",
-      primaryLabel: "Loonvordering Brief",
-      secondaryHref: "/#verify-agency",
-      secondaryLabel: "Rode Vlaggen Loon",
-    },
-    {
-      department: "Huisvesting / SNF-desk",
-      stageCode: "Fase 05",
-      focus:
-        "SNF-certificering checken, ongedierte-/hygiënenormen en het 25% WAS-huurplafond.",
-      lawRef: "SNF-norm · WAS 25%-grens",
-      primaryHref: "/#verify-agency",
-      primaryLabel: "Check SNF-register",
-      secondaryHref: "/#submit-report",
-      secondaryLabel: "Huisvesting Melden",
-    },
-  ];
 }
