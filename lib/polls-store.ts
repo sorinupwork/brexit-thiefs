@@ -1,8 +1,25 @@
-import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
-import { db, isFirebaseConfigured } from "@/firebase";
+import {
+  collection,
+  doc,
+  getDoc,
+  runTransaction,
+  serverTimestamp,
+} from "firebase/firestore";
+import { getDb, isFirebaseConfigured } from "@/firebase";
+import { formatSlugTitle, getAgencyBySlug } from "./agency-team";
+import {
+  createEmptyAgencyDiagnosticTally,
+  createEmptyDiagnosticQuestions,
+  DIAGNOSTIC_QUESTION_IDS,
+} from "./diagnostic-utils";
 import {
   EMPTY_USER_VOTES,
+  type AgencyDiagnosticTally,
   type BrusselsActionOptionId,
+  type DiagnosticAnswer,
+  type DiagnosticAnswersMap,
+  type DiagnosticQuestionId,
+  type DiagnosticSubmissionInput,
   type InstituteActionOptionId,
   type PollState,
   type RedFlagPollOptionId,
@@ -12,6 +29,25 @@ import {
 const POLLS_COLLECTION = "poll_metrics";
 const POLLS_SUMMARY_DOC = "summary";
 export const VOTE_RECORDS_COLLECTION = "vote_records";
+export const DIAGNOSTIC_SUBMISSIONS_COLLECTION = "diagnostic_submissions";
+
+export {
+  createEmptyAgencyDiagnosticTally,
+  createEmptyDiagnosticQuestions,
+  DIAGNOSTIC_QUESTION_IDS,
+};
+
+const VALID_DIAGNOSTIC_QUESTIONS = new Set<DiagnosticQuestionId>(
+  DIAGNOSTIC_QUESTION_IDS
+);
+
+const VALID_DIAGNOSTIC_ANSWERS = new Set<DiagnosticAnswer>([
+  "yes",
+  "no",
+  "unsure",
+]);
+
+const AGENCY_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,79}$/;
 
 export const DEFAULT_POLL_STATE: PollState = {
   redFlagVotes: {
@@ -41,6 +77,7 @@ export const DEFAULT_POLL_STATE: PollState = {
   reportFlags: {},
   agencyFlags: {},
   diagnosticConfirmations: 0,
+  agencyDiagnostics: {},
 };
 
 const VALID_RED_FLAG_OPTIONS = new Set<RedFlagPollOptionId>([
@@ -70,6 +107,10 @@ const VALID_INSTITUTE_ACTIONS = new Set<InstituteActionOptionId>([
   "collective-lawsuit",
 ]);
 
+function coerceNumber(raw: unknown): number {
+  return typeof raw === "number" && Number.isFinite(raw) && raw >= 0 ? raw : 0;
+}
+
 function coerceNumberRecord(raw: unknown): Record<string, number> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const result: Record<string, number> = {};
@@ -78,6 +119,54 @@ function coerceNumberRecord(raw: unknown): Record<string, number> {
       result[k] = v;
     }
   }
+  return result;
+}
+
+function normalizeAgencyDiagnostics(
+  raw: unknown
+): Record<string, AgencyDiagnosticTally> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+
+  const result: Record<string, AgencyDiagnosticTally> = {};
+  for (const [slug, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!AGENCY_SLUG_RE.test(slug) || !value || typeof value !== "object") {
+      continue;
+    }
+    const rec = value as Record<string, unknown>;
+    const base = createEmptyAgencyDiagnosticTally(
+      slug,
+      typeof rec.agencyName === "string" ? rec.agencyName : undefined
+    );
+    const rawQuestions =
+      rec.questions &&
+      typeof rec.questions === "object" &&
+      !Array.isArray(rec.questions)
+        ? (rec.questions as Record<string, unknown>)
+        : {};
+
+    const questions = createEmptyDiagnosticQuestions();
+    for (const qId of DIAGNOSTIC_QUESTION_IDS) {
+      const qRec = rawQuestions[qId];
+      if (qRec && typeof qRec === "object" && !Array.isArray(qRec)) {
+        const qr = qRec as Record<string, unknown>;
+        questions[qId] = {
+          yes: coerceNumber(qr.yes),
+          no: coerceNumber(qr.no),
+          unsure: coerceNumber(qr.unsure),
+        };
+      }
+    }
+
+    result[slug] = {
+      agencySlug: slug,
+      agencyName: base.agencyName,
+      submissions: coerceNumber(rec.submissions),
+      totalYesFlags: coerceNumber(rec.totalYesFlags),
+      criticalSubmissions: coerceNumber(rec.criticalSubmissions),
+      questions,
+    };
+  }
+
   return result;
 }
 
@@ -104,23 +193,62 @@ function normalizePollState(raw?: Record<string, unknown>): PollState {
     },
     reportFlags: coerceNumberRecord(raw.reportFlags),
     agencyFlags: coerceNumberRecord(raw.agencyFlags),
-    diagnosticConfirmations:
-      typeof raw.diagnosticConfirmations === "number" &&
-      Number.isFinite(raw.diagnosticConfirmations)
-        ? raw.diagnosticConfirmations
-        : 0,
+    diagnosticConfirmations: coerceNumber(raw.diagnosticConfirmations),
+    agencyDiagnostics: normalizeAgencyDiagnostics(raw.agencyDiagnostics),
   };
 }
 
-export function parseVoterVotes(raw?: Record<string, unknown>): Record<string, string> {
+export function parseVoterVotes(
+  raw?: Record<string, unknown>
+): Record<string, string> {
   const votesRaw = raw?.votes;
   if (!votesRaw || typeof votesRaw !== "object" || Array.isArray(votesRaw)) {
     return {};
   }
   const parsed: Record<string, string> = {};
-  for (const [key, val] of Object.entries(votesRaw as Record<string, unknown>)) {
+  for (const [key, val] of Object.entries(
+    votesRaw as Record<string, unknown>
+  )) {
     if (typeof val === "string") {
       parsed[key] = val;
+    }
+  }
+  return parsed;
+}
+
+function parseDiagnosticAnswersMap(raw: unknown): DiagnosticAnswersMap {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const clean: DiagnosticAnswersMap = {};
+  for (const [qId, ans] of Object.entries(raw as Record<string, unknown>)) {
+    if (
+      VALID_DIAGNOSTIC_QUESTIONS.has(qId as DiagnosticQuestionId) &&
+      VALID_DIAGNOSTIC_ANSWERS.has(ans as DiagnosticAnswer)
+    ) {
+      clean[qId as DiagnosticQuestionId] = ans as DiagnosticAnswer;
+    }
+  }
+  return clean;
+}
+
+export function parseVoterDiagnosticAnswers(
+  raw?: Record<string, unknown>
+): Record<string, DiagnosticAnswersMap> {
+  const answersRaw = raw?.diagnosticAnswers;
+  if (
+    !answersRaw ||
+    typeof answersRaw !== "object" ||
+    Array.isArray(answersRaw)
+  ) {
+    return {};
+  }
+  const parsed: Record<string, DiagnosticAnswersMap> = {};
+  for (const [slug, map] of Object.entries(
+    answersRaw as Record<string, unknown>
+  )) {
+    if (!AGENCY_SLUG_RE.test(slug)) continue;
+    const cleanMap = parseDiagnosticAnswersMap(map);
+    if (Object.keys(cleanMap).length > 0) {
+      parsed[slug] = cleanMap;
     }
   }
   return parsed;
@@ -135,7 +263,7 @@ export function getScopeKeyForVote(vote: PollVoteInput): string {
     case "brussels-action":
       return "brussels-action";
     case "diagnostic-confirm":
-      return "diagnostic-confirm";
+      return `diagnostic-confirm:${vote.targetId}`;
     case "agency-flag":
       return `agency-flag:${vote.targetId}`;
     case "report-flag":
@@ -143,10 +271,7 @@ export function getScopeKeyForVote(vote: PollVoteInput): string {
   }
 }
 
-function applyPollIncrement(
-  current: PollState,
-  vote: PollVoteInput
-): PollState {
+function applyPollIncrement(current: PollState, vote: PollVoteInput): PollState {
   const next: PollState = {
     redFlagVotes: { ...current.redFlagVotes },
     brusselsActionVotes: { ...current.brusselsActionVotes },
@@ -154,6 +279,7 @@ function applyPollIncrement(
     reportFlags: { ...current.reportFlags },
     agencyFlags: { ...current.agencyFlags },
     diagnosticConfirmations: current.diagnosticConfirmations,
+    agencyDiagnostics: { ...current.agencyDiagnostics },
   };
 
   if (vote.kind === "red-flag") {
@@ -184,7 +310,7 @@ export async function readPolls(): Promise<PollState> {
   }
 
   try {
-    const snap = await getDoc(doc(db, POLLS_COLLECTION, POLLS_SUMMARY_DOC));
+    const snap = await getDoc(doc(getDb(), POLLS_COLLECTION, POLLS_SUMMARY_DOC));
     return normalizePollState(snap.exists() ? snap.data() : undefined);
   } catch (err) {
     console.error("[polls-store] Firestore readPolls failed:", err);
@@ -198,10 +324,12 @@ export async function readUserVotes(
   if (!voterId || !isFirebaseConfigured()) return EMPTY_USER_VOTES;
 
   try {
-    const snap = await getDoc(doc(db, VOTE_RECORDS_COLLECTION, voterId));
+    const snap = await getDoc(doc(getDb(), VOTE_RECORDS_COLLECTION, voterId));
     if (!snap.exists()) return EMPTY_USER_VOTES;
 
-    const voterScopes = parseVoterVotes(snap.data());
+    const rawData = snap.data();
+    const voterScopes = parseVoterVotes(rawData);
+    const diagnosticAnswersByAgency = parseVoterDiagnosticAnswers(rawData);
     const userVotes: UserVotesState = {
       redFlagVote: null,
       instituteActionVote: null,
@@ -210,6 +338,8 @@ export async function readUserVotes(
       flaggedReports: [],
       confirmedComments: [],
       diagnosticConfirmed: false,
+      diagnosticConfirmedAgencies: [],
+      diagnosticAnswersByAgency,
     };
 
     for (const [scopeKey, targetId] of Object.entries(voterScopes)) {
@@ -228,8 +358,11 @@ export async function readUserVotes(
         VALID_BRUSSELS_ACTIONS.has(targetId as BrusselsActionOptionId)
       ) {
         userVotes.brusselsActionVote = targetId as BrusselsActionOptionId;
-      } else if (scopeKey === "diagnostic-confirm") {
-        userVotes.diagnosticConfirmed = true;
+      } else if (scopeKey.startsWith("diagnostic-confirm:")) {
+        const agencySlug = scopeKey.slice("diagnostic-confirm:".length);
+        if (AGENCY_SLUG_RE.test(agencySlug)) {
+          userVotes.diagnosticConfirmedAgencies.push(agencySlug);
+        }
       } else if (scopeKey.startsWith("agency-flag:")) {
         userVotes.flaggedAgencies.push(targetId);
       } else if (scopeKey.startsWith("report-flag:")) {
@@ -238,6 +371,9 @@ export async function readUserVotes(
         userVotes.confirmedComments.push(targetId);
       }
     }
+
+    userVotes.diagnosticConfirmed =
+      userVotes.diagnosticConfirmedAgencies.length > 0;
 
     return userVotes;
   } catch (err) {
@@ -321,6 +457,58 @@ export function validatePollVote(
   return { ok: false, error: "Unknown vote kind." };
 }
 
+export function validateDiagnosticSubmission(
+  body: unknown
+):
+  | {
+      ok: true;
+      data: {
+        agencySlug: string;
+        agencyName: string;
+        answers: DiagnosticAnswersMap;
+      };
+    }
+  | { ok: false; error: string } {
+  if (!body || typeof body !== "object") {
+    return { ok: false, error: "Invalid diagnostic submission payload." };
+  }
+
+  const record = body as Record<string, unknown>;
+  const rawSlug =
+    typeof record.agencySlug === "string"
+      ? record.agencySlug.trim().toLowerCase()
+      : "";
+
+  if (!AGENCY_SLUG_RE.test(rawSlug)) {
+    return { ok: false, error: "Please select a valid staffing agency." };
+  }
+
+  const answers = parseDiagnosticAnswersMap(record.answers);
+  if (Object.keys(answers).length === 0) {
+    return {
+      ok: false,
+      error: "Please answer at least one diagnostic question before saving.",
+    };
+  }
+
+  const matchedAgency = getAgencyBySlug(rawSlug);
+  const providedName =
+    typeof record.agencyName === "string" && record.agencyName.trim()
+      ? record.agencyName.trim().slice(0, 80)
+      : undefined;
+  const agencyName =
+    matchedAgency?.name ?? providedName ?? formatSlugTitle(rawSlug);
+
+  return {
+    ok: true,
+    data: {
+      agencySlug: rawSlug,
+      agencyName,
+      answers,
+    },
+  };
+}
+
 export async function recordPollVote(
   vote: PollVoteInput,
   voterId?: string | null
@@ -329,6 +517,7 @@ export async function recordPollVote(
     throw new Error("Firebase is not configured.");
   }
 
+  const db = getDb();
   const summaryRef = doc(db, POLLS_COLLECTION, POLLS_SUMMARY_DOC);
   const voterRef = voterId ? doc(db, VOTE_RECORDS_COLLECTION, voterId) : null;
   const scopeKey = getScopeKeyForVote(vote);
@@ -353,10 +542,14 @@ export async function recordPollVote(
     const nextPolls = applyPollIncrement(currentPolls, vote);
 
     if (voterRef) {
-      tx.set(voterRef, {
-        votes: { ...voterVotes, [scopeKey]: vote.targetId },
-        updatedAt: serverTimestamp(),
-      });
+      tx.set(
+        voterRef,
+        {
+          votes: { ...voterVotes, [scopeKey]: vote.targetId },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
     }
     tx.set(summaryRef, {
       ...nextPolls,
@@ -364,5 +557,141 @@ export async function recordPollVote(
     });
 
     return { polls: nextPolls, alreadyVoted: false };
+  });
+}
+
+export async function recordDiagnosticSubmission(
+  input: Required<DiagnosticSubmissionInput>,
+  voterId?: string | null
+): Promise<{
+  polls: PollState;
+  alreadySubmitted: boolean;
+  submissionId: string | null;
+}> {
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase is not configured.");
+  }
+
+  const db = getDb();
+  const summaryRef = doc(db, POLLS_COLLECTION, POLLS_SUMMARY_DOC);
+  const voterRef = voterId ? doc(db, VOTE_RECORDS_COLLECTION, voterId) : null;
+  const submissionRef = doc(collection(db, DIAGNOSTIC_SUBMISSIONS_COLLECTION));
+  const scopeKey = `diagnostic-confirm:${input.agencySlug}`;
+
+  const yesQuestionIds: DiagnosticQuestionId[] = [];
+  const noQuestionIds: DiagnosticQuestionId[] = [];
+  const unsureQuestionIds: DiagnosticQuestionId[] = [];
+
+  for (const qId of DIAGNOSTIC_QUESTION_IDS) {
+    const ans = input.answers[qId];
+    if (ans === "yes") yesQuestionIds.push(qId);
+    else if (ans === "no") noQuestionIds.push(qId);
+    else if (ans === "unsure") unsureQuestionIds.push(qId);
+  }
+
+  const verdictLevel =
+    yesQuestionIds.length >= 3
+      ? "critical"
+      : yesQuestionIds.length >= 1
+        ? "warn"
+        : "clear";
+
+  return runTransaction(db, async (tx) => {
+    const [summarySnap, voterSnap] = await Promise.all([
+      tx.get(summaryRef),
+      voterRef ? tx.get(voterRef) : Promise.resolve(null),
+    ]);
+
+    const currentPolls = normalizePollState(
+      summarySnap.exists() ? summarySnap.data() : undefined
+    );
+    const voterData = voterSnap?.exists() ? voterSnap.data() : undefined;
+    const voterVotes = parseVoterVotes(voterData);
+    const voterAnswers = parseVoterDiagnosticAnswers(voterData);
+
+    if (voterRef && typeof voterVotes[scopeKey] === "string") {
+      return {
+        polls: currentPolls,
+        alreadySubmitted: true,
+        submissionId: voterVotes[scopeKey] ?? null,
+      };
+    }
+
+    const existingAgencyTally =
+      currentPolls.agencyDiagnostics[input.agencySlug] ??
+      createEmptyAgencyDiagnosticTally(input.agencySlug, input.agencyName);
+
+    const nextQuestions = createEmptyDiagnosticQuestions();
+    for (const qId of DIAGNOSTIC_QUESTION_IDS) {
+      const prevQ = existingAgencyTally.questions[qId];
+      const ans = input.answers[qId];
+      nextQuestions[qId] = {
+        yes: prevQ.yes + (ans === "yes" ? 1 : 0),
+        no: prevQ.no + (ans === "no" ? 1 : 0),
+        unsure: prevQ.unsure + (ans === "unsure" ? 1 : 0),
+      };
+    }
+
+    const nextAgencyTally: AgencyDiagnosticTally = {
+      agencySlug: input.agencySlug,
+      agencyName: input.agencyName,
+      submissions: existingAgencyTally.submissions + 1,
+      totalYesFlags: existingAgencyTally.totalYesFlags + yesQuestionIds.length,
+      criticalSubmissions:
+        existingAgencyTally.criticalSubmissions +
+        (yesQuestionIds.length >= 3 ? 1 : 0),
+      questions: nextQuestions,
+    };
+
+    const nextPolls: PollState = {
+      ...currentPolls,
+      diagnosticConfirmations: (currentPolls.diagnosticConfirmations ?? 0) + 1,
+      agencyDiagnostics: {
+        ...currentPolls.agencyDiagnostics,
+        [input.agencySlug]: nextAgencyTally,
+      },
+    };
+
+    tx.set(submissionRef, {
+      agencySlug: input.agencySlug,
+      agencyName: input.agencyName,
+      answers: input.answers,
+      yesQuestionIds,
+      noQuestionIds,
+      unsureQuestionIds,
+      yesCount: yesQuestionIds.length,
+      noCount: noQuestionIds.length,
+      unsureCount: unsureQuestionIds.length,
+      answeredCount: Object.keys(input.answers).length,
+      verdictLevel,
+      voterId: voterId ?? null,
+      createdAt: serverTimestamp(),
+    });
+
+    if (voterRef) {
+      tx.set(
+        voterRef,
+        {
+          votes: { ...voterVotes, [scopeKey]: submissionRef.id },
+          diagnosticAnswers: {
+            ...voterAnswers,
+            [input.agencySlug]: input.answers,
+          },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    tx.set(summaryRef, {
+      ...nextPolls,
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      polls: nextPolls,
+      alreadySubmitted: false,
+      submissionId: submissionRef.id,
+    };
   });
 }

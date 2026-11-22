@@ -1,11 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CollaboratingCompaniesSlider } from "@/components/agencies/CollaboratingCompaniesSlider";
 import { useLanguage } from "@/components/layout/LanguageProvider";
 import { MemberPhotoModal } from "@/components/shared/MemberPhotoModal";
+import {
+  PortraitDenyOverlay,
+  WarningWatermarkOverlay,
+} from "@/components/shared/WarningWatermarkOverlay";
 import {
   getInitials,
   type AgencyDepartmentId,
@@ -21,11 +25,18 @@ type FilterOption = "all" | "verified" | "unverified" | AgencyDepartmentId;
 interface AgencyTeamVisualizerProps {
   initialAgency: AgencyRecord;
   allAgencies: AgencySummaryLink[];
+  headerLiveActions?: ReactNode;
+  diagnosticSection?: ReactNode;
 }
 
 function LinkedInIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z" />
     </svg>
   );
@@ -34,6 +45,8 @@ function LinkedInIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
 export function AgencyTeamVisualizer({
   initialAgency,
   allAgencies,
+  headerLiveActions,
+  diagnosticSection,
 }: AgencyTeamVisualizerProps) {
   const { locale } = useLanguage();
   const copy = UI_TEXT[locale].agencyVisualizer;
@@ -117,12 +130,12 @@ export function AgencyTeamVisualizer({
         </div>
       </div>
 
-      {/* 1. LinkedIn-Style Agency Company Banner Header */}
+      {/* 1. Agency Profile Header with Subtle Editorial X / AVOID Banner */}
       <section className="blueprint-grid border-b border-slate-200 py-10 sm:py-12">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 font-mono text-[11px] font-medium text-slate-700 shadow-2xs">
-              <span className="h-2 w-2 rounded-full bg-[#0A66C2]" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-3 py-1 font-mono text-[11px] font-medium text-slate-700 shadow-2xs">
+              <span className="h-2 w-2 rounded-full bg-rose-600" />
               {copy.dedicatedBadge} · /agencies/{agency.slug}
             </div>
             <Link
@@ -133,21 +146,23 @@ export function AgencyTeamVisualizer({
             </Link>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {/* Cover Banner */}
-            <div className="relative h-32 bg-gradient-to-r from-slate-950 via-slate-900 to-[#D95D24] sm:h-40">
-              <div
-                className="absolute inset-0 opacity-20"
-                style={{
-                  backgroundImage:
-                    "radial-gradient(rgba(255,255,255,0.45) 1px, transparent 1px)",
-                  backgroundSize: "18px 18px",
-                }}
+          <div className="group overflow-hidden rounded-2xl border border-rose-200/80 bg-white shadow-sm">
+            {/* Cover Banner with Slow-Breathing X & AVOID Watermark */}
+            <div className="relative h-32 overflow-hidden bg-gradient-to-r from-slate-950 via-rose-950/90 to-slate-900 sm:h-40">
+              <WarningWatermarkOverlay
+                stampText={copy.avoidStamp}
+                tone="dark"
+                stampPlacement="center"
               />
-              <div className="relative flex h-full items-start justify-between p-4 sm:p-6">
-                <span className="rounded-full border border-white/20 bg-slate-950/60 px-3 py-1 font-mono text-[11px] font-semibold text-amber-300 backdrop-blur-xs">
-                  {copy.bannerTag}
-                </span>
+              <div className="relative z-10 flex h-full items-start justify-between p-4 sm:p-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-rose-400/40 bg-rose-950/80 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-rose-200 backdrop-blur-xs">
+                    {copy.deniedBadge}
+                  </span>
+                  <span className="hidden rounded-full border border-white/15 bg-slate-950/60 px-3 py-1 font-mono text-[11px] font-semibold text-amber-300 backdrop-blur-xs md:inline-flex">
+                    {copy.bannerTag}
+                  </span>
+                </div>
                 <span className="hidden rounded-full border border-white/20 bg-white/10 px-3 py-1 font-mono text-[11px] text-white backdrop-blur-xs sm:inline-flex">
                   {agency.members.length} {copy.profilesWord} ·{" "}
                   {agency.departments.length} {copy.unitsWord}
@@ -159,15 +174,16 @@ export function AgencyTeamVisualizer({
             <div className="px-5 pb-6 sm:px-8 sm:pb-8">
               <div className="-mt-10 flex flex-col justify-between gap-5 sm:-mt-12 md:flex-row md:items-end">
                 <div className="flex items-end gap-4">
-                  <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-[#D95D24] text-2xl font-bold tracking-tight text-white shadow-md sm:h-24 sm:w-24">
-                    {agency.monogram}
+                  <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-slate-950 text-2xl font-bold tracking-tight text-amber-400 shadow-md ring-1 ring-rose-500/40 sm:h-24 sm:w-24">
+                    <span className="relative z-10">{agency.monogram}</span>
+                    <PortraitDenyOverlay label={copy.memberAvoidMini} />
                   </div>
                   <div className="pt-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
                         {agency.name}
                       </h1>
-                      <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-sky-900">
+                      <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-rose-900">
                         {copy.agencyTypeBadge}
                       </span>
                     </div>
@@ -178,11 +194,12 @@ export function AgencyTeamVisualizer({
                 </div>
 
                 <div className="flex flex-wrap gap-2.5">
+                  {headerLiveActions}
                   <a
                     href={agency.linkedInPeopleSearchUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#0A66C2] px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#004182]"
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#0A66C2] px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#004182]"
                   >
                     <LinkedInIcon className="h-4 w-4" />
                     {copy.searchLinkedInTeam}
@@ -195,12 +212,6 @@ export function AgencyTeamVisualizer({
                   >
                     {copy.officialWebsiteBtn}
                   </a>
-                  <Link
-                    href="/#verify-agency"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-900 transition-colors hover:border-rose-400"
-                  >
-                    {copy.verifyRegistriesBtn}
-                  </Link>
                 </div>
               </div>
 
@@ -255,12 +266,12 @@ export function AgencyTeamVisualizer({
         </div>
       </section>
 
-      {/* 2. LinkedIn-Style Team Member Profile Grid */}
+      {/* 2. Agency Team Member Profile Grid (Editorial Caution / AVOID Dossier Aesthetic) */}
       <section className="border-b border-slate-200 bg-[#f8f9fa] py-14">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
-              <p className="font-mono text-xs font-semibold uppercase tracking-widest text-[#0A66C2]">
+              <p className="font-mono text-xs font-semibold uppercase tracking-widest text-rose-700">
                 {copy.sec2Eyebrow}
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
@@ -341,37 +352,46 @@ export function AgencyTeamVisualizer({
                 return (
                   <article
                     key={member.id}
-                    className="flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                    className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-rose-200/80 bg-white shadow-xs transition-all duration-700 ease-out hover:-translate-y-0.5 hover:border-rose-400/90 hover:shadow-md"
                   >
-                    <div>
-                      <div
-                        className={`relative h-20 px-4 pt-3 ${
-                          isVerified
-                            ? "bg-gradient-to-r from-slate-900 via-slate-800 to-[#0A66C2]"
-                            : "bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-[10px] font-semibold ${
-                              isVerified
-                                ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-300/40"
-                                : "bg-white/15 text-slate-100 ring-1 ring-white/25"
-                            }`}
-                          >
+                    {/* Subtle slow-breathing X + AVOID watermark in card body */}
+                    <WarningWatermarkOverlay
+                      stampText={copy.avoidStamp}
+                      tone="light"
+                      stampPlacement="center"
+                      compact
+                    />
+
+                    <div className="relative z-10">
+                      {/* Dark Obsidian-Crimson Dossier Header */}
+                      <div className="relative h-20 overflow-hidden bg-gradient-to-r from-slate-950 via-rose-950/90 to-slate-900 px-4 pt-3">
+                        <WarningWatermarkOverlay tone="dark" compact />
+                        <div className="relative z-10 flex items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-rose-400/45 bg-rose-950/90 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-rose-200">
+                              ✕ {copy.memberAvoidMini}
+                            </span>
                             <span
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                isVerified ? "bg-emerald-300" : "bg-amber-300"
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold ${
+                                isVerified
+                                  ? "bg-amber-500/20 text-amber-100 ring-1 ring-amber-300/40"
+                                  : "bg-white/10 text-slate-200 ring-1 ring-white/20"
                               }`}
-                            />
-                            {member.roleBadgeLabel}
-                          </span>
+                            >
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  isVerified ? "bg-amber-300" : "bg-slate-400"
+                                }`}
+                              />
+                              {member.roleBadgeLabel}
+                            </span>
+                          </div>
 
                           {member.photoPath && (
                             <button
                               type="button"
                               onClick={() => setInspectedMember(member)}
-                              className="rounded-md bg-black/30 px-2 py-0.5 font-mono text-[10px] font-medium text-white backdrop-blur-xs transition-colors hover:bg-black/50"
+                              className="rounded-md bg-black/40 px-2 py-0.5 font-mono text-[10px] font-medium text-white backdrop-blur-xs transition-colors hover:bg-black/65"
                             >
                               {copy.zoomPhoto}
                             </button>
@@ -386,23 +406,31 @@ export function AgencyTeamVisualizer({
                               type="button"
                               onClick={() => setInspectedMember(member)}
                               aria-label={`${copy.zoomPhoto}: ${member.name}`}
-                              className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-slate-100 shadow-md ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-[#D95D24]"
+                              className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-slate-900 shadow-md ring-1 ring-rose-300/80 focus:outline-none focus:ring-2 focus:ring-rose-500"
                             >
                               <Image
                                 src={member.photoPath}
                                 alt={member.photoAlt}
                                 fill
                                 sizes="96px"
-                                className={`object-cover transition-transform duration-300 group-hover:scale-105 ${member.objectPosition}`}
+                                className={`object-cover contrast-[1.03] saturate-[0.82] transition-transform duration-700 ease-out group-hover:scale-105 ${member.objectPosition}`}
+                              />
+                              <PortraitDenyOverlay
+                                label={copy.memberAvoidMini}
                               />
                             </button>
                           ) : (
-                            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-slate-800 font-mono text-2xl font-bold text-white shadow-md ring-1 ring-slate-200">
-                              {getInitials(member.name)}
+                            <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-slate-900 font-mono text-2xl font-bold text-white shadow-md ring-1 ring-rose-300/80">
+                              <span className="relative z-10">
+                                {getInitials(member.name)}
+                              </span>
+                              <PortraitDenyOverlay
+                                label={copy.memberAvoidMini}
+                              />
                             </div>
                           )}
 
-                          <span className="mb-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-700">
+                          <span className="mb-1 rounded-md border border-rose-200/80 bg-rose-50/80 px-2 py-0.5 font-mono text-[10px] font-semibold text-rose-900">
                             {member.departmentLabel}
                           </span>
                         </div>
@@ -411,7 +439,7 @@ export function AgencyTeamVisualizer({
                           <h3 className="text-lg font-semibold tracking-tight text-slate-950">
                             {member.name}
                           </h3>
-                          <p className="text-xs font-semibold text-[#0A66C2]">
+                          <p className="text-xs font-semibold text-rose-800">
                             {member.headline}
                           </p>
                           <p className="mt-1 font-mono text-[11px] text-slate-500">
@@ -427,24 +455,24 @@ export function AgencyTeamVisualizer({
                           {member.sourceNote}
                         </p>
 
-                        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <span className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        <div className="mt-4 rounded-xl border border-rose-200/70 bg-rose-50/50 p-3 backdrop-blur-[1px]">
+                          <span className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-rose-900">
                             {copy.relatedGuideLabel}
                           </span>
                           <p className="mt-0.5 text-xs font-medium text-slate-900">
                             {member.relatedDisputeArea}
                           </p>
-                          <Link
-                            href={member.portalHref}
-                            className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-[#D95D24] hover:underline"
+                          <a
+                            href="#agency-diagnostic"
+                            className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-rose-700 hover:underline"
                           >
-                            {member.portalLinkLabel} →
-                          </Link>
+                            {copy.verifyRegistriesBtn}
+                          </a>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-3">
+                    <div className="relative z-10 flex items-center justify-between gap-2 border-t border-rose-100 bg-slate-50/85 px-5 py-3">
                       <a
                         href={member.linkedInSearchUrl}
                         target="_blank"
@@ -453,6 +481,12 @@ export function AgencyTeamVisualizer({
                       >
                         <LinkedInIcon className="h-3.5 w-3.5" />
                         {member.linkedInButtonLabel} ↗
+                      </a>
+                      <a
+                        href="#agency-diagnostic"
+                        className="font-mono text-[11px] font-semibold text-rose-700 hover:underline"
+                      >
+                        6-Q Audit ↓
                       </a>
                     </div>
                   </article>
@@ -463,10 +497,14 @@ export function AgencyTeamVisualizer({
         </div>
       </section>
 
+      {/* 3. Streamed Per-Agency 6-Question Audit & Live Firestore Community Tally */}
+      {diagnosticSection}
+
+      {/* 4. Smooth Collaborating Warehouses Carousel with Subtle X / AVOID Treatment */}
       <CollaboratingCompaniesSlider
         agencySlug={agency.slug}
         agencyName={agency.name}
-        sectionClassName="bg-white py-14"
+        sectionClassName="bg-[#f8f9fa] py-14"
       />
 
       <MemberPhotoModal

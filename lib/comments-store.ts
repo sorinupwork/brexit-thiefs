@@ -10,7 +10,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
-import { db, isFirebaseConfigured } from "@/firebase";
+import { getDb, isFirebaseConfigured } from "@/firebase";
 import { compareIsoDesc, serializeFirestoreTimestamp } from "./firestore-utils";
 import { parseVoterVotes, VOTE_RECORDS_COLLECTION } from "./polls-store";
 import type {
@@ -64,7 +64,7 @@ export async function readComments(): Promise<CommunityComment[]> {
 
   try {
     const q = query(
-      collection(db, COMMENTS_COLLECTION),
+      collection(getDb(), COMMENTS_COLLECTION),
       orderBy("createdAt", "desc")
     );
     const snap = await getDocs(q);
@@ -138,7 +138,7 @@ export async function appendComment(
     throw new Error("Firebase is not configured.");
   }
 
-  const docRef = await addDoc(collection(db, COMMENTS_COLLECTION), {
+  const docRef = await addDoc(collection(getDb(), COMMENTS_COLLECTION), {
     agencyName: input.agencyName,
     topic: input.topic,
     ...(input.corridor ? { corridor: input.corridor } : {}),
@@ -165,6 +165,7 @@ export async function confirmComment(
     throw new Error("Firebase is not configured.");
   }
 
+  const db = getDb();
   const commentRef = doc(db, COMMENTS_COLLECTION, commentId);
   const voterRef = voterId ? doc(db, VOTE_RECORDS_COLLECTION, voterId) : null;
   const scopeKey = `comment-confirm:${commentId}`;
@@ -189,10 +190,14 @@ export async function confirmComment(
 
     tx.update(commentRef, { confirmations: increment(1) });
     if (voterRef) {
-      tx.set(voterRef, {
-        votes: { ...voterVotes, [scopeKey]: commentId },
-        updatedAt: serverTimestamp(),
-      });
+      tx.set(
+        voterRef,
+        {
+          votes: { ...voterVotes, [scopeKey]: commentId },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
     }
 
     return "confirmed" as const;

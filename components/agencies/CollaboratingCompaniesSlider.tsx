@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLanguage } from "@/components/layout/LanguageProvider";
+import { WarningWatermarkOverlay } from "@/components/shared/WarningWatermarkOverlay";
 import {
   getCollaboratingCompanies,
   type CompanyRegionFilter,
@@ -43,7 +44,12 @@ export function CollaboratingCompaniesSlider({
   );
 
   const [regionFilter, setRegionFilter] = useState<SliderFilter>("all");
+  const [userPaused, setUserPaused] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
+  const scrollPosRef = useRef(0);
+  const isHoveringRef = useRef(false);
+  const isManualScrollingRef = useRef(false);
+  const resumeTimerRef = useRef<number | null>(null);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(true);
 
@@ -55,17 +61,44 @@ export function CollaboratingCompaniesSlider({
     return companies.filter((c) => c.regionGroup === regionFilter);
   }, [companies, regionFilter, agencySlug]);
 
+  const shouldLoop = visibleCompanies.length >= 3;
+
+  const renderedCompanies = useMemo(() => {
+    if (!shouldLoop) {
+      return visibleCompanies.map((company) => ({
+        company,
+        renderKey: company.id,
+      }));
+    }
+    return [
+      ...visibleCompanies.map((company) => ({
+        company,
+        renderKey: `${company.id}-a`,
+      })),
+      ...visibleCompanies.map((company) => ({
+        company,
+        renderKey: `${company.id}-b`,
+      })),
+    ];
+  }, [visibleCompanies, shouldLoop]);
+
   const updateScrollButtons = useCallback(() => {
     const el = trackRef.current;
     if (!el) return;
+    if (shouldLoop) {
+      setCanScrollPrev(true);
+      setCanScrollNext(true);
+      return;
+    }
     setCanScrollPrev(el.scrollLeft > 4);
     setCanScrollNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
+  }, [shouldLoop]);
 
   useEffect(() => {
     const el = trackRef.current;
     if (el) {
       el.scrollTo({ left: 0 });
+      scrollPosRef.current = 0;
     }
     const raf = window.requestAnimationFrame(updateScrollButtons);
     window.addEventListener("resize", updateScrollButtons);
@@ -75,10 +108,98 @@ export function CollaboratingCompaniesSlider({
     };
   }, [visibleCompanies, updateScrollButtons]);
 
+  useEffect(() => {
+    if (!shouldLoop || userPaused) return;
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) return;
+
+    let rafId = 0;
+    let lastTime = performance.now();
+    const SPEED_PX_PER_SEC = 24;
+
+    const tick = (now: number) => {
+      const dt = Math.min(48, now - lastTime);
+      lastTime = now;
+
+      const el = trackRef.current;
+      if (el && !isHoveringRef.current && !isManualScrollingRef.current) {
+        const halfWidth = el.scrollWidth / 2;
+        if (halfWidth > el.clientWidth / 2) {
+          scrollPosRef.current += (SPEED_PX_PER_SEC * dt) / 1000;
+          if (scrollPosRef.current >= halfWidth) {
+            scrollPosRef.current -= halfWidth;
+          }
+          el.scrollLeft = scrollPosRef.current;
+        }
+      }
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+    };
+  }, [shouldLoop, userPaused, visibleCompanies]);
+
+  useEffect(() => {
+    return () => {
+      if (resumeTimerRef.current !== null) {
+        window.clearTimeout(resumeTimerRef.current);
+      }
+    };
+  }, []);
+
+  function pauseTemporarily(durationMs = 1400) {
+    isManualScrollingRef.current = true;
+    if (resumeTimerRef.current !== null) {
+      window.clearTimeout(resumeTimerRef.current);
+    }
+    resumeTimerRef.current = window.setTimeout(() => {
+      const el = trackRef.current;
+      if (el) {
+        scrollPosRef.current = el.scrollLeft;
+      }
+      isManualScrollingRef.current = false;
+      resumeTimerRef.current = null;
+    }, durationMs);
+  }
+
+  function handleTrackScroll() {
+    const el = trackRef.current;
+    if (!el) return;
+    if (
+      isHoveringRef.current ||
+      isManualScrollingRef.current ||
+      userPaused ||
+      !shouldLoop
+    ) {
+      scrollPosRef.current = el.scrollLeft;
+    }
+    updateScrollButtons();
+  }
+
   function scrollSlider(direction: "prev" | "next") {
     const el = trackRef.current;
     if (!el) return;
-    const distance = Math.max(280, Math.round(el.clientWidth * 0.8));
+    pauseTemporarily(1100);
+    const distance = Math.max(300, Math.round(el.clientWidth * 0.72));
+
+    if (shouldLoop) {
+      const halfWidth = el.scrollWidth / 2;
+      if (direction === "prev" && el.scrollLeft < distance) {
+        el.scrollLeft = el.scrollLeft + halfWidth;
+        scrollPosRef.current = el.scrollLeft;
+      } else if (
+        direction === "next" &&
+        el.scrollLeft + distance > halfWidth * 1.6
+      ) {
+        el.scrollLeft = Math.max(0, el.scrollLeft - halfWidth);
+        scrollPosRef.current = el.scrollLeft;
+      }
+    }
+
     el.scrollBy({
       left: direction === "next" ? distance : -distance,
       behavior: "smooth",
@@ -89,9 +210,9 @@ export function CollaboratingCompaniesSlider({
     ["all", `${copy.sliderFilterAll} (${companies.length})`],
     ...(agencySlug && agencyName && agencyMatchCount > 0
       ? ([["agency", `${agencyName} (${agencyMatchCount})`]] as [
-          SliderFilter,
-          string,
-        ][])
+        SliderFilter,
+        string,
+      ][])
       : []),
     ["amsterdam", "Amsterdam / Schiphol"],
     ["rotterdam", "Rotterdam / Moerdijk"],
@@ -116,6 +237,20 @@ export function CollaboratingCompaniesSlider({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            {shouldLoop && (
+              <button
+                type="button"
+                onClick={() => setUserPaused((p) => !p)}
+                aria-pressed={userPaused}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 font-mono text-[11px] font-semibold text-slate-700 shadow-2xs transition-colors hover:border-slate-900 hover:text-slate-950"
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${userPaused ? "bg-slate-400" : "bg-rose-600 animate-pulse"
+                    }`}
+                />
+                {userPaused ? copy.sliderPlayLabel : copy.sliderPauseLabel}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => scrollSlider("prev")}
@@ -146,11 +281,10 @@ export function CollaboratingCompaniesSlider({
                 key={value}
                 type="button"
                 onClick={() => setRegionFilter(value)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                  active
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${active
                     ? "border-slate-900 bg-slate-900 text-white"
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"
-                }`}
+                  }`}
               >
                 {label}
               </button>
@@ -158,63 +292,97 @@ export function CollaboratingCompaniesSlider({
           })}
         </div>
 
-        {/* Horizontal Scroll-Snap Slider */}
+        {/* Buttery-Smooth Horizontal Carousel with Edge Fade Masks */}
         <div
-          ref={trackRef}
-          onScroll={updateScrollButtons}
-          className="mt-6 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4"
+          className="relative mt-6"
+          onMouseEnter={() => {
+            isHoveringRef.current = true;
+          }}
+          onMouseLeave={() => {
+            const el = trackRef.current;
+            if (el) scrollPosRef.current = el.scrollLeft;
+            isHoveringRef.current = false;
+          }}
+          onFocusCapture={() => {
+            isHoveringRef.current = true;
+          }}
+          onBlurCapture={() => {
+            const el = trackRef.current;
+            if (el) scrollPosRef.current = el.scrollLeft;
+            isHoveringRef.current = false;
+          }}
+          onPointerDown={() => pauseTemporarily(2200)}
         >
-          {visibleCompanies.map((company) => (
-            <article
-              key={company.id}
-              className="flex w-[86%] shrink-0 snap-start flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs transition-all hover:border-slate-300 hover:shadow-md sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
-            >
-              <div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="rounded-md bg-slate-900 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-300">
-                    {company.corridorLabel}
-                  </span>
-                  <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[10px] font-medium text-slate-700">
-                    {company.sector}
-                  </span>
+          <div
+            ref={trackRef}
+            onScroll={handleTrackScroll}
+            className="no-scrollbar flex gap-5 overflow-x-auto py-2 [mask-image:linear-gradient(to_right,transparent,black_2%,black_98%,transparent)]"
+          >
+            {renderedCompanies.map(({ company, renderKey }) => (
+              <article
+                key={renderKey}
+                className="group relative flex w-[86%] shrink-0 flex-col justify-between overflow-hidden rounded-2xl border border-rose-200/80 bg-white p-5 shadow-2xs transition-all duration-700 ease-out hover:-translate-y-0.5 hover:border-rose-400/90 hover:shadow-md sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
+              >
+                {/* Slow-breathing architectural X & AVOID watermark background */}
+                <WarningWatermarkOverlay
+                  stampText={copy.warehouseStamp}
+                  tone="light"
+                  stampPlacement="center"
+                />
+
+                <div className="relative z-10">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-950 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-rose-200">
+                      {copy.warehouseWarningBadge}
+                    </span>
+                    <span className="rounded-md bg-slate-900 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-300">
+                      {company.corridorLabel}
+                    </span>
+                  </div>
+
+                  <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-md border border-slate-200 bg-slate-50/90 px-2 py-0.5 font-mono text-[10px] font-medium text-slate-700">
+                      {company.sector}
+                    </span>
+                  </div>
+
+                  <h3 className="mt-3 text-base font-semibold text-slate-950">
+                    {company.name}
+                  </h3>
+                  <p className="mt-1 font-mono text-[11px] text-slate-500">
+                    📍 {company.location}
+                  </p>
+
+                  <p className="mt-2.5 text-xs leading-relaxed text-slate-700">
+                    {company.summary}
+                  </p>
+
+                  <div className="mt-3 rounded-lg border border-rose-200/90 bg-rose-50/80 px-3 py-2 font-mono text-[10px] font-semibold text-rose-950 backdrop-blur-[1px]">
+                    {company.agencyNote}
+                  </div>
                 </div>
 
-                <h3 className="mt-3 text-base font-semibold text-slate-950">
-                  {company.name}
-                </h3>
-                <p className="mt-1 font-mono text-[11px] text-slate-500">
-                  📍 {company.location}
-                </p>
-
-                <p className="mt-2.5 text-xs leading-relaxed text-slate-600">
-                  {company.summary}
-                </p>
-
-                <div className="mt-3 rounded-lg border border-sky-200/80 bg-sky-50/60 px-3 py-2 font-mono text-[10px] font-semibold text-sky-900">
-                  {company.agencyNote}
+                <div className="relative z-10 mt-4 flex items-center gap-2 border-t border-rose-100/90 pt-3.5">
+                  <a
+                    href={company.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex flex-1 items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-rose-700"
+                  >
+                    {copy.companySiteBtn} ↗
+                  </a>
+                  <a
+                    href={company.linkedInSearchUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white/90 px-3 py-2 text-xs font-semibold text-[#0A66C2] transition-colors hover:border-[#0A66C2]"
+                  >
+                    LinkedIn ↗
+                  </a>
                 </div>
-              </div>
-
-              <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3.5">
-                <a
-                  href={company.websiteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex flex-1 items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#D95D24]"
-                >
-                  {copy.companySiteBtn} ↗
-                </a>
-                <a
-                  href={company.linkedInSearchUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[#0A66C2] transition-colors hover:border-[#0A66C2]"
-                >
-                  LinkedIn ↗
-                </a>
-              </div>
-            </article>
-          ))}
+              </article>
+            ))}
+          </div>
         </div>
 
         <p className="mt-2 text-[11px] leading-relaxed text-slate-500">

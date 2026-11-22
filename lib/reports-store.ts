@@ -9,7 +9,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
-import { db, isFirebaseConfigured } from "@/firebase";
+import { getDb, isFirebaseConfigured } from "@/firebase";
 import { CATEGORY_META } from "./data";
 import { compareIsoDesc, serializeFirestoreTimestamp } from "./firestore-utils";
 import { buildPrivateEvidenceUrl } from "./storage";
@@ -154,7 +154,7 @@ export async function readReports(): Promise<WorkerReport[]> {
 
   try {
     const q = query(
-      collection(db, REPORTS_COLLECTION),
+      collection(getDb(), REPORTS_COLLECTION),
       orderBy("createdAt", "desc")
     );
     const snap = await getDocs(q);
@@ -315,6 +315,7 @@ export async function appendReport(
     throw new Error("Firebase is not configured.");
   }
 
+  const db = getDb();
   const authorities = CATEGORY_META[input.category].authorities;
   const counterRef = doc(db, COUNTERS_COLLECTION, REPORTS_COUNTER_DOC);
   const reportRef = doc(collection(db, REPORTS_COLLECTION));

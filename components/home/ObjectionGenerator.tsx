@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { PENDING_OBJECTION_STORAGE_KEY } from "@/components/agencies/AgencyDiagnosticQuiz";
 import { useLanguage } from "@/components/layout/LanguageProvider";
 import { copyTextOrDownload, downloadTextFile } from "@/lib/client-storage";
 import { UI_TEXT } from "@/lib/i18n-ui";
@@ -50,19 +51,43 @@ export function ObjectionGenerator() {
   );
 
   useEffect(() => {
+    function applyPrefill(detail?: {
+      disputeType?: DisputeType;
+      agencyName?: string;
+    }) {
+      if (!detail) return;
+      if (detail.disputeType) {
+        setDisputeType(detail.disputeType);
+      }
+      if (detail.agencyName) {
+        setAgencyName(detail.agencyName);
+      }
+    }
+
     function onPrefillObjection(e: Event) {
       const custom = e as CustomEvent<{
         disputeType?: DisputeType;
         agencyName?: string;
       }>;
-      if (!custom.detail) return;
-      if (custom.detail.disputeType) {
-        setDisputeType(custom.detail.disputeType);
-      }
-      if (custom.detail.agencyName) {
-        setAgencyName(custom.detail.agencyName);
-      }
+      applyPrefill(custom.detail);
     }
+
+    try {
+      const pendingRaw = window.sessionStorage.getItem(
+        PENDING_OBJECTION_STORAGE_KEY
+      );
+      if (pendingRaw) {
+        window.sessionStorage.removeItem(PENDING_OBJECTION_STORAGE_KEY);
+        const parsed = JSON.parse(pendingRaw) as {
+          disputeType?: DisputeType;
+          agencyName?: string;
+        };
+        queueMicrotask(() => applyPrefill(parsed));
+      }
+    } catch {
+      // Ignore storage / parse errors
+    }
+
     window.addEventListener("werkrecht-prefill-objection", onPrefillObjection);
     return () => {
       window.removeEventListener(

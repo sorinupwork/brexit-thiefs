@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createReportAction } from "@/actions/reports";
 import { submitVoteAction } from "@/actions/votes";
+import { PENDING_REPORT_STORAGE_KEY } from "@/components/agencies/AgencyDiagnosticQuiz";
 import { useLanguage } from "@/components/layout/LanguageProvider";
 import { CATEGORY_META, EVIDENCE_LABELS, NL_REGIONS } from "@/lib/data";
 import {
@@ -112,6 +113,18 @@ export function ReportsPortal({
       const custom = e as CustomEvent<PollState>;
       if (custom.detail) setPolls(custom.detail);
     }
+    function applyPrefillReport(detail?: {
+      category?: IssueCategory;
+      stage?: LifecycleStageId;
+      agencyName?: string;
+      summary?: string;
+    }) {
+      if (!detail) return;
+      if (detail.category) setCategory(detail.category);
+      if (detail.stage) setStage(detail.stage);
+      if (detail.agencyName) setAgencyName(detail.agencyName);
+      if (detail.summary) setSummary(detail.summary);
+    }
     function onPrefillReport(e: Event) {
       const custom = e as CustomEvent<{
         category?: IssueCategory;
@@ -119,12 +132,27 @@ export function ReportsPortal({
         agencyName?: string;
         summary?: string;
       }>;
-      if (!custom.detail) return;
-      if (custom.detail.category) setCategory(custom.detail.category);
-      if (custom.detail.stage) setStage(custom.detail.stage);
-      if (custom.detail.agencyName) setAgencyName(custom.detail.agencyName);
-      if (custom.detail.summary) setSummary(custom.detail.summary);
+      applyPrefillReport(custom.detail);
     }
+
+    try {
+      const pendingRaw = window.sessionStorage.getItem(
+        PENDING_REPORT_STORAGE_KEY
+      );
+      if (pendingRaw) {
+        window.sessionStorage.removeItem(PENDING_REPORT_STORAGE_KEY);
+        const parsed = JSON.parse(pendingRaw) as {
+          category?: IssueCategory;
+          stage?: LifecycleStageId;
+          agencyName?: string;
+          summary?: string;
+        };
+        queueMicrotask(() => applyPrefillReport(parsed));
+      }
+    } catch {
+      // Ignore storage / parse errors
+    }
+
     window.addEventListener("werkrecht-polls-updated", onPollsUpdated);
     window.addEventListener("werkrecht-prefill-report", onPrefillReport);
     return () => {

@@ -4,24 +4,27 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { submitVoteAction } from "@/actions/votes";
+import { AgencyDiagnosticQuiz } from "@/components/agencies/AgencyDiagnosticQuiz";
 import { useLanguage } from "@/components/layout/LanguageProvider";
 import { MemberPhotoModal } from "@/components/shared/MemberPhotoModal";
+import {
+  PortraitDenyOverlay,
+  WarningWatermarkOverlay,
+} from "@/components/shared/WarningWatermarkOverlay";
 import {
   getInitials,
   type AgencyRecord,
   type AgencyTeamMember,
 } from "@/lib/agency-team";
-import { getLocalizedAgency } from "@/lib/i18n-data";
-import { UI_TEXT } from "@/lib/i18n-ui";
-import type { PollState, UserVotesState } from "@/lib/types";
 import {
   mergeUniqueIds,
   useLocalStorageList,
-  useLocalStorageValue,
   useSyncedUserVotes,
   writeLocalStorageList,
-  writeLocalStorageValue,
 } from "@/lib/client-storage";
+import { getLocalizedAgency } from "@/lib/i18n-data";
+import { UI_TEXT } from "@/lib/i18n-ui";
+import type { PollState, UserVotesState } from "@/lib/types";
 
 interface AgencyCorruptionVisualizerProps {
   initialAgencies: AgencyRecord[];
@@ -29,10 +32,7 @@ interface AgencyCorruptionVisualizerProps {
   initialUserVotes: UserVotesState;
 }
 
-type QuizAnswer = "yes" | "no" | "unsure";
-
 const AGENCY_FLAG_EVENT = "werkrecht-agency-flag-storage";
-const QUIZ_TALLY_EVENT = "werkrecht-quiz-tally-storage";
 
 export function AgencyCorruptionVisualizer({
   initialAgencies,
@@ -49,27 +49,18 @@ export function AgencyCorruptionVisualizer({
   const [polls, setPolls] = useState<PollState>(initialPolls);
   const [userVotes, updateUserVotes] = useSyncedUserVotes(initialUserVotes);
   const [flaggingSlug, setFlaggingSlug] = useState<string | null>(null);
-  const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [inspectedMember, setInspectedMember] =
     useState<AgencyTeamMember | null>(null);
-  const [answers, setAnswers] = useState<Record<string, QuizAnswer>>({});
 
   const localFlaggedSlugs = useLocalStorageList(
     "werkrecht_flagged_agencies",
     AGENCY_FLAG_EVENT
   );
-  const localQuizTallySent =
-    useLocalStorageValue(
-      "werkrecht_quiz_tally_sent",
-      QUIZ_TALLY_EVENT,
-      ""
-    ) === "1";
 
   const flaggedSlugs = useMemo(
     () => mergeUniqueIds(userVotes.flaggedAgencies, localFlaggedSlugs),
     [userVotes.flaggedAgencies, localFlaggedSlugs]
   );
-  const quizTallySent = userVotes.diagnosticConfirmed || localQuizTallySent;
 
   useEffect(() => {
     function onPollsUpdated(e: Event) {
@@ -93,12 +84,6 @@ export function AgencyCorruptionVisualizer({
       localizedAgencies[0],
     [localizedAgencies, selectedSlug]
   );
-
-  const yesQuestions = useMemo(
-    () => copy.questions.filter((q) => answers[q.id] === "yes"),
-    [copy.questions, answers]
-  );
-  const yesCount = yesQuestions.length;
 
   async function handleFlagAgency(slug: string) {
     if (flaggedSlugs.includes(slug)) return;
@@ -127,71 +112,11 @@ export function AgencyCorruptionVisualizer({
     }
   }
 
-  async function handleConfirmQuizToTally() {
-    if (quizTallySent || yesCount === 0) return;
-    setSubmittingQuiz(true);
-    try {
-      const result = await submitVoteAction({
-        kind: "diagnostic-confirm",
-        targetId: selectedAgency?.slug ?? "general",
-      });
-      if (result.ok && result.polls) {
-        setPolls(result.polls);
-        if (result.userVotes) {
-          updateUserVotes(result.userVotes);
-        }
-        writeLocalStorageValue(
-          "werkrecht_quiz_tally_sent",
-          "1",
-          QUIZ_TALLY_EVENT
-        );
-        window.dispatchEvent(
-          new CustomEvent("werkrecht-polls-updated", { detail: result.polls })
-        );
-      }
-    } finally {
-      setSubmittingQuiz(false);
-    }
-  }
-
-  function handleJumpToDemandLetter() {
-    const primaryQuestion = yesQuestions[0];
-    window.dispatchEvent(
-      new CustomEvent("werkrecht-prefill-objection", {
-        detail: {
-          disputeType: primaryQuestion?.disputeType ?? "combined",
-          agencyName: selectedAgency?.name ?? "",
-        },
-      })
-    );
-    document
-      .getElementById("objection-letter")
-      ?.scrollIntoView({ behavior: "smooth" });
-  }
-
-  function handleJumpToReportForm() {
-    const primaryQuestion = yesQuestions[0];
-    const confirmedList = yesQuestions.map((q) => `- ${q.question}`).join("\n");
-    window.dispatchEvent(
-      new CustomEvent("werkrecht-prefill-report", {
-        detail: {
-          agencyName: selectedAgency?.name ?? "",
-          category: primaryQuestion?.category ?? "wage-deduction",
-          stage: primaryQuestion?.stage ?? "payroll",
-          summary: confirmedList
-            ? `Confirmed red-flag patterns:\n${confirmedList}`
-            : "",
-        },
-      })
-    );
-    document
-      .getElementById("submit-report")
-      ?.scrollIntoView({ behavior: "smooth" });
-  }
-
   if (!selectedAgency) return null;
 
   const currentAgencyFlags = polls.agencyFlags?.[selectedAgency.slug] ?? 0;
+  const currentAgencyAudits =
+    polls.agencyDiagnostics?.[selectedAgency.slug]?.submissions ?? 0;
   const isAgencyFlagged = flaggedSlugs.includes(selectedAgency.slug);
 
   return (
@@ -232,34 +157,50 @@ export function AgencyCorruptionVisualizer({
                 {localizedAgencies.map((agency) => {
                   const active = agency.slug === selectedAgency.slug;
                   const flags = polls.agencyFlags?.[agency.slug] ?? 0;
+                  const audits =
+                    polls.agencyDiagnostics?.[agency.slug]?.submissions ?? 0;
                   return (
                     <button
                       key={agency.id}
                       type="button"
                       onClick={() => setSelectedSlug(agency.slug)}
                       aria-pressed={active}
-                      className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-semibold transition-all ${active
+                      className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-semibold transition-all ${
+                        active
                           ? "border-slate-950 bg-slate-950 text-white shadow-xs"
                           : "border-slate-300 bg-white text-slate-800 hover:border-slate-900"
-                        }`}
+                      }`}
                     >
                       <span
-                        className={`flex h-6 w-6 items-center justify-center rounded-md font-mono text-[11px] font-bold ${active
+                        className={`flex h-6 w-6 items-center justify-center rounded-md font-mono text-[11px] font-bold ${
+                          active
                             ? "bg-[#D95D24] text-white"
                             : "bg-slate-100 text-slate-800"
-                          }`}
+                        }`}
                       >
                         {agency.monogram}
                       </span>
                       <span>{agency.name}</span>
                       <span
-                        className={`rounded-full px-2 py-0.5 font-mono text-[10px] ${active
+                        className={`rounded-full px-2 py-0.5 font-mono text-[10px] ${
+                          active
                             ? "bg-rose-500/25 text-rose-200"
                             : "bg-rose-50 text-rose-800"
-                          }`}
+                        }`}
                       >
                         🚩 {flags}
                       </span>
+                      {audits > 0 && (
+                        <span
+                          className={`rounded-full px-2 py-0.5 font-mono text-[10px] ${
+                            active
+                              ? "bg-amber-400/20 text-amber-200"
+                              : "bg-amber-50 text-amber-900"
+                          }`}
+                        >
+                          ✓ {audits}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -271,16 +212,15 @@ export function AgencyCorruptionVisualizer({
                 type="button"
                 disabled={isAgencyFlagged || flaggingSlug === selectedAgency.slug}
                 onClick={() => handleFlagAgency(selectedAgency.slug)}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors ${isAgencyFlagged
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors ${
+                  isAgencyFlagged
                     ? "border-rose-300 bg-rose-100 text-rose-900"
                     : "border-rose-600 bg-rose-600 text-white hover:bg-rose-700"
-                  }`}
+                }`}
               >
                 🚩{" "}
-                {isAgencyFlagged
-                  ? copy.flaggedAgencyBtn
-                  : copy.flagAgencyBtn}{" "}
-                ({currentAgencyFlags})
+                {isAgencyFlagged ? copy.flaggedAgencyBtn : copy.flagAgencyBtn} (
+                {currentAgencyFlags})
               </button>
               <Link
                 href={`/agencies/${selectedAgency.slug}`}
@@ -293,59 +233,76 @@ export function AgencyCorruptionVisualizer({
 
           {/* Selected Agency Summary + Why Watch Out / Avoid Traps by Department */}
           <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-950 font-mono text-lg font-bold text-[#F59E0B]">
-                  {selectedAgency.monogram}
+            <div className="group relative overflow-hidden rounded-xl border border-rose-200/80 bg-white p-5 lg:col-span-5">
+              <WarningWatermarkOverlay
+                stampText={copy.avoidStamp}
+                tone="light"
+                stampPlacement="top-right"
+                compact
+              />
+
+              <div className="relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-950 font-mono text-lg font-bold text-[#F59E0B] ring-1 ring-rose-500/40">
+                    {selectedAgency.monogram}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-950">
+                      {selectedAgency.name}
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      {selectedAgency.hqLocation}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-950">
-                    {selectedAgency.name}
-                  </h3>
-                  <p className="text-xs text-slate-600">
-                    {selectedAgency.hqLocation}
+
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {selectedAgency.regionalHubs.map((hub) => (
+                    <span
+                      key={hub}
+                      className="rounded-md border border-slate-200 bg-slate-50/90 px-2 py-0.5 font-mono text-[10px] font-medium text-slate-700"
+                    >
+                      📍 {hub}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 backdrop-blur-[1px]">
+                  <span className="block font-mono text-[10px] font-bold uppercase tracking-wider text-rose-900">
+                    {copy.whyAvoidHeading}
+                  </span>
+                  <p className="mt-1 text-xs leading-relaxed text-rose-950">
+                    {selectedAgency.scamPreventionFocus}
                   </p>
                 </div>
-              </div>
 
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {selectedAgency.regionalHubs.map((hub) => (
-                  <span
-                    key={hub}
-                    className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[10px] font-medium text-slate-700"
-                  >
-                    📍 {hub}
-                  </span>
-                ))}
+                <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50/90 p-2.5">
+                    <dt className="font-mono text-[10px] text-slate-500">
+                      {copy.profilesLabel}
+                    </dt>
+                    <dd className="mt-0.5 text-base font-bold text-slate-950">
+                      {selectedAgency.members.length}
+                    </dd>
+                  </div>
+                  <div className="rounded-lg border border-rose-200 bg-rose-50/70 p-2.5">
+                    <dt className="font-mono text-[10px] text-rose-700">
+                      {copy.flagsLabel}
+                    </dt>
+                    <dd className="mt-0.5 text-base font-bold text-rose-900">
+                      {currentAgencyFlags}
+                    </dd>
+                  </div>
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-2.5">
+                    <dt className="font-mono text-[10px] text-amber-800">
+                      {copy.tallyStatsSubmissions}
+                    </dt>
+                    <dd className="mt-0.5 text-base font-bold text-amber-950">
+                      {currentAgencyAudits}
+                    </dd>
+                  </div>
+                </dl>
               </div>
-
-              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50/70 p-3.5">
-                <span className="block font-mono text-[10px] font-bold uppercase tracking-wider text-rose-900">
-                  {copy.whyAvoidHeading}
-                </span>
-                <p className="mt-1 text-xs leading-relaxed text-rose-950">
-                  {selectedAgency.scamPreventionFocus}
-                </p>
-              </div>
-
-              <dl className="mt-4 grid grid-cols-2 gap-2.5 text-center">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <dt className="font-mono text-[10px] text-slate-500">
-                    {copy.profilesLabel}
-                  </dt>
-                  <dd className="mt-0.5 text-base font-bold text-slate-950">
-                    {selectedAgency.members.length}
-                  </dd>
-                </div>
-                <div className="rounded-lg border border-rose-200 bg-rose-50/60 p-2.5">
-                  <dt className="font-mono text-[10px] text-rose-700">
-                    {copy.flagsLabel}
-                  </dt>
-                  <dd className="mt-0.5 text-base font-bold text-rose-900">
-                    {currentAgencyFlags}
-                  </dd>
-                </div>
-              </dl>
             </div>
 
             {/* 3 Department "Why Watch Out / Avoid" Cards */}
@@ -375,14 +332,16 @@ export function AgencyCorruptionVisualizer({
             </div>
           </div>
 
-          {/* Visual Team Roster Cards with Real Photos */}
+          {/* Visual Team Roster Cards with Real Photos + Subtle Professional X / AVOID Treatment */}
           <div className="mt-6 border-t border-slate-200 pt-5">
             <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
               <div>
                 <h4 className="text-sm font-semibold text-slate-950">
                   {selectedAgency.name} · {copy.rosterSubheading}
                 </h4>
-                <p className="mt-0.5 text-xs text-slate-500">{copy.rosterNote}</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {copy.rosterNote}
+                </p>
               </div>
             </div>
 
@@ -392,45 +351,70 @@ export function AgencyCorruptionVisualizer({
                 return (
                   <div
                     key={member.id}
-                    className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition-all hover:border-slate-400 hover:shadow-sm"
+                    className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-rose-200/80 bg-white p-3.5 shadow-2xs transition-all duration-700 ease-out hover:-translate-y-0.5 hover:border-rose-400/90 hover:shadow-md"
                   >
-                    <div>
+                    <WarningWatermarkOverlay
+                      stampText={copy.avoidStamp}
+                      tone="light"
+                      stampPlacement="bottom-right"
+                      compact
+                    />
+
+                    <div className="relative z-10">
                       <div className="flex items-start justify-between gap-2">
                         {member.photoPath ? (
                           <button
                             type="button"
                             onClick={() => setInspectedMember(member)}
                             aria-label={`${copy.zoomBtn}: ${member.name}`}
-                            className="group relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100"
+                            className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-rose-300/80 bg-slate-900 shadow-2xs"
                           >
                             <Image
                               src={member.photoPath}
                               alt={member.photoAlt}
                               fill
                               sizes="56px"
-                              className={`object-cover transition-transform group-hover:scale-105 ${member.objectPosition}`}
+                              className={`object-cover contrast-[1.03] saturate-[0.82] transition-transform duration-700 ease-out group-hover:scale-105 ${member.objectPosition}`}
+                            />
+                            <PortraitDenyOverlay
+                              label={
+                                locale === "nl" ? "VERMIJDEN" : "AVOID"
+                              }
                             />
                           </button>
                         ) : (
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-900 font-mono text-base font-bold text-white">
-                            {getInitials(member.name)}
+                          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-rose-400/50 bg-slate-950 font-mono text-base font-bold text-white">
+                            <span className="relative z-10">
+                              {getInitials(member.name)}
+                            </span>
+                            <PortraitDenyOverlay
+                              label={
+                                locale === "nl" ? "VERMIJDEN" : "AVOID"
+                              }
+                            />
                           </div>
                         )}
 
-                        <span
-                          className={`rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold ${isVerified
-                              ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200"
-                              : "bg-slate-100 text-slate-700 ring-1 ring-slate-200"
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="rounded-md border border-rose-500/40 bg-rose-950 px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider text-rose-200">
+                            {copy.avoidBadge}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold ${
+                              isVerified
+                                ? "bg-amber-50 text-amber-900 ring-1 ring-amber-300/70"
+                                : "bg-slate-100 text-slate-700 ring-1 ring-slate-200"
                             }`}
-                        >
-                          {member.roleBadgeLabel}
-                        </span>
+                          >
+                            {member.roleBadgeLabel}
+                          </span>
+                        </div>
                       </div>
 
                       <h5 className="mt-2.5 text-sm font-semibold text-slate-950">
                         {member.name}
                       </h5>
-                      <p className="text-[11px] font-semibold text-[#0A66C2]">
+                      <p className="text-[11px] font-semibold text-rose-800">
                         {member.role}
                       </p>
                       <p className="mt-0.5 font-mono text-[10px] text-slate-500">
@@ -441,7 +425,7 @@ export function AgencyCorruptionVisualizer({
                       </p>
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+                    <div className="relative z-10 mt-3 flex items-center justify-between gap-2 border-t border-rose-100 pt-2.5">
                       <a
                         href={member.linkedInSearchUrl}
                         target="_blank"
@@ -451,10 +435,10 @@ export function AgencyCorruptionVisualizer({
                         LinkedIn ↗
                       </a>
                       <Link
-                        href={`/agencies/${selectedAgency.slug}`}
-                        className="font-mono text-[10px] font-semibold text-[#D95D24] hover:underline"
+                        href={`/agencies/${selectedAgency.slug}#agency-diagnostic`}
+                        className="font-mono text-[10px] font-semibold text-rose-700 hover:underline"
                       >
-                        Org →
+                        Audit →
                       </Link>
                     </div>
                   </div>
@@ -464,174 +448,17 @@ export function AgencyCorruptionVisualizer({
           </div>
         </div>
 
-        {/* Part 2: Interactive 6-Question "Confirm If They Do This or Not" Diagnostic */}
-        <div
+        {/* Part 2: Per-Agency 6-Question Diagnostic & Live Firestore Community Tally */}
+        <AgencyDiagnosticQuiz
+          agencySlug={selectedAgency.slug}
+          agencyName={selectedAgency.name}
+          polls={polls}
+          userVotes={userVotes}
+          onPollsUpdated={setPolls}
+          onUserVotesUpdated={updateUserVotes}
+          mode="home"
           id="confirm-questions"
-          className="mt-10 scroll-mt-24 rounded-2xl border-2 border-slate-900 bg-slate-950 p-6 text-slate-100 shadow-lg sm:p-8"
-        >
-          <div className="flex flex-col justify-between gap-4 border-b border-slate-800 pb-5 md:flex-row md:items-end">
-            <div className="max-w-3xl">
-              <p className="font-mono text-xs font-semibold uppercase tracking-widest text-amber-400">
-                {copy.quizEyebrow}
-              </p>
-              <h3 className="mt-1.5 text-2xl font-semibold tracking-tight text-white">
-                {copy.quizHeading}
-              </h3>
-              <p className="mt-2 text-xs leading-relaxed text-slate-300 sm:text-sm">
-                {copy.quizIntro}
-              </p>
-            </div>
-            {Object.keys(answers).length > 0 && (
-              <button
-                type="button"
-                onClick={() => setAnswers({})}
-                className="shrink-0 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 font-mono text-xs font-semibold text-slate-200 hover:border-slate-500"
-              >
-                {copy.resetQuizBtn}
-              </button>
-            )}
-          </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {copy.questions.map((q) => {
-              const current = answers[q.id];
-              return (
-                <div
-                  key={q.id}
-                  className={`rounded-xl border p-4 transition-colors ${current === "yes"
-                      ? "border-rose-500/70 bg-rose-950/30"
-                      : current === "no"
-                        ? "border-emerald-500/40 bg-emerald-950/20"
-                        : "border-slate-800 bg-slate-900/70"
-                    }`}
-                >
-                  <p className="text-sm font-semibold leading-snug text-white">
-                    {q.question}
-                  </p>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAnswers((prev) => ({ ...prev, [q.id]: "yes" }))
-                      }
-                      aria-pressed={current === "yes"}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${current === "yes"
-                          ? "border-rose-500 bg-rose-600 text-white"
-                          : "border-slate-700 bg-slate-950 text-slate-200 hover:border-rose-400"
-                        }`}
-                    >
-                      🚩 {copy.yesBtn}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAnswers((prev) => ({ ...prev, [q.id]: "no" }))
-                      }
-                      aria-pressed={current === "no"}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${current === "no"
-                          ? "border-emerald-500 bg-emerald-600 text-white"
-                          : "border-slate-700 bg-slate-950 text-slate-200 hover:border-emerald-400"
-                        }`}
-                    >
-                      ✓ {copy.noBtn}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAnswers((prev) => ({ ...prev, [q.id]: "unsure" }))
-                      }
-                      aria-pressed={current === "unsure"}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${current === "unsure"
-                          ? "border-amber-400 bg-amber-500 text-slate-950"
-                          : "border-slate-700 bg-slate-950 text-slate-400 hover:border-amber-400"
-                        }`}
-                    >
-                      ? {copy.unsureBtn}
-                    </button>
-                  </div>
-
-                  {(current === "yes" || current === "unsure") && (
-                    <div className="mt-3 space-y-2 border-t border-slate-800 pt-3 text-xs">
-                      <p className="leading-relaxed text-rose-200">
-                        <strong className="font-mono text-[10px] uppercase tracking-wider text-rose-400">
-                          {copy.whyIllegalLabel}{" "}
-                        </strong>
-                        {q.whyIllegal}
-                      </p>
-                      <p className="leading-relaxed text-amber-100">
-                        <strong className="font-mono text-[10px] uppercase tracking-wider text-amber-400">
-                          {copy.proofNeededLabel}{" "}
-                        </strong>
-                        {q.proof}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Live Confirmation Verdict & Direct Action Bar */}
-          <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900 p-5">
-            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-              <div className="max-w-2xl">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs font-bold uppercase tracking-wider text-amber-400">
-                    {copy.verdictTitle}
-                  </span>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${yesCount >= 3
-                        ? "bg-rose-600 text-white"
-                        : yesCount >= 1
-                          ? "bg-amber-500 text-slate-950"
-                          : "bg-slate-800 text-slate-300"
-                      }`}
-                  >
-                    {yesCount} {copy.confirmedCountSuffix}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs leading-relaxed text-slate-200 sm:text-sm">
-                  {yesCount >= 3
-                    ? copy.verdictCritical
-                    : yesCount >= 1
-                      ? copy.verdictWarn
-                      : copy.verdictClear}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2.5">
-                {yesCount > 0 && (
-                  <button
-                    type="button"
-                    disabled={quizTallySent || submittingQuiz}
-                    onClick={handleConfirmQuizToTally}
-                    className={`rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${quizTallySent
-                        ? "border-emerald-400 bg-emerald-600 text-white"
-                        : "border-rose-400 bg-rose-600 text-white hover:bg-rose-700"
-                      }`}
-                  >
-                    {quizTallySent ? copy.sentToTallyBtn : copy.sendToTallyBtn}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleJumpToDemandLetter}
-                  className="rounded-lg bg-[#D95D24] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-amber-600"
-                >
-                  {copy.draftDemandFromQuizBtn}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleJumpToReportForm}
-                  className="rounded-lg border border-slate-600 bg-slate-950 px-4 py-2 text-xs font-semibold text-white transition-colors hover:border-white"
-                >
-                  {copy.logCaseFromQuizBtn}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        />
       </div>
 
       <MemberPhotoModal

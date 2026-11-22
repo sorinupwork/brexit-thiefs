@@ -436,8 +436,30 @@ export const UI_TEXT = {
       verdictCritical:
         "KRITIEK: Meerdere ernstige wetsovertredingen bevestigd! Je hebt sterke gronden om je geld terug te vorderen en het bureau aan te pakken via SNCU, Arbeidsinspectie, Politie en advocaat.",
       confirmedCountSuffix: "van 6 rode vlaggen bevestigd",
-      sendToTallyBtn: "Bevestig & Tel Mee in Community Bewijs",
-      sentToTallyBtn: "Meegeteld in Community Bewijs ✓",
+      sendToTallyBtn: "Bevestig & Opslaan in Community Bewijs",
+      sentToTallyBtn: "Opgeslagen in Community Bewijs ✓",
+      savingToTallyBtn: "Opslaan in Firestore...",
+      auditingAgencyBadge: "Beoordeling voor:",
+      tallyStatsSubmissions: "community checks",
+      tallyStatsViolations: "overtredingen bevestigd",
+      tallyStatsCritical: "kritieke meldingen",
+      questionTallyLabel: "Community-stand voor",
+      questionTallyEmpty:
+        "Nog geen antwoorden opgeslagen voor dit bureau — wees de eerste.",
+      answerAtLeastOneHint: "Beantwoord minstens 1 vraag om op te slaan voor",
+      savedBannerPrefix: "Opgeslagen in Firestore voor",
+      savedBannerSuffix:
+        "— jouw antwoorden zijn direct meegeteld in de live community-stand van dit bureau.",
+      alreadySubmittedNote:
+        "Je hebt jouw 6-vragen check al opgeslagen voor",
+      switchAgencyHint:
+        "Selecteer een ander bureau om een aparte beoordeling in te vullen.",
+      submitErrorFallback:
+        "Opslaan in Firestore mislukt. Probeer het opnieuw.",
+      registryQuickCheckTitle:
+        "Officiële Registers Direct Controleren (Waadi / SNA / SNF)",
+      avoidStamp: "VERMIJDEN · AFGEKEURD",
+      avoidBadge: "✕ VERMIJDEN",
       draftDemandFromQuizBtn: "Maak Direct Geld-Terug Brief →",
       logCaseFromQuizBtn: "Zet in Zaakmelding & Bewijs →",
       questions: [
@@ -852,6 +874,10 @@ export const UI_TEXT = {
       sliderFilterAll: "Alle",
       sliderPrevLabel: "Vorige bedrijven",
       sliderNextLabel: "Volgende bedrijven",
+      sliderPauseLabel: "Pauzeer",
+      sliderPlayLabel: "Auto-scroll",
+      warehouseStamp: "VERMIJDEN · AFGEKEURD",
+      warehouseWarningBadge: "✕ VERMIJDEN · HOOG RISICO",
       companySiteBtn: "Website",
       sliderNote:
         "Feitelijk overzicht van logistieke en operationele opdrachtgevers in Nederland voor controle van loonschalen en reiskosten (inlenersbeloning); vermelding betekent geen beschuldiging tegen het bedrijf zelf.",
@@ -867,7 +893,14 @@ export const UI_TEXT = {
       agencyTypeBadge: "Uitzendbureau",
       searchLinkedInTeam: "Zoek Team op LinkedIn ↗",
       officialWebsiteBtn: "Officiële Website / KvK ↗",
-      verifyRegistriesBtn: "Check Waadi / SNA / SNF →",
+      verifyRegistriesBtn: "6-Vragen Check & Community Stand ↓",
+      avoidStamp: "VERMIJDEN · AFGEKEURD",
+      deniedBadge: "✕ AFGEWEZEN · VERMIJDEN",
+      memberAvoidMini: "VERMIJDEN",
+      diagnosticSectionEyebrow:
+        "02 · Community Bewijs & 6-Vragen Check voor Dit Bureau",
+      flagAgencyBtn: "Markeer Risicopatroon",
+      flaggedAgencyBtn: "Gemarkeerd ✓",
       hqLabel: "Hoofdkantoor",
       hubsLabel: "Wervingslocaties",
       sectorsLabel: "Kernsectoren",
@@ -1085,8 +1118,30 @@ export const UI_TEXT = {
       verdictCritical:
         "CRITICAL: Multiple serious violations confirmed! You have clear legal grounds to reclaim your money and sue/report them via SNCU, Arbeidsinspectie, Politie & employment counsel.",
       confirmedCountSuffix: "of 6 violations confirmed",
-      sendToTallyBtn: "Confirm & Add to Community Evidence Tally",
-      sentToTallyBtn: "Added to Community Tally ✓",
+      sendToTallyBtn: "Confirm & Save to Community Evidence Tally",
+      sentToTallyBtn: "Saved to Community Tally ✓",
+      savingToTallyBtn: "Saving to Firestore...",
+      auditingAgencyBadge: "Auditing agency:",
+      tallyStatsSubmissions: "community audits",
+      tallyStatsViolations: "violations confirmed",
+      tallyStatsCritical: "critical dossiers",
+      questionTallyLabel: "Community tally for",
+      questionTallyEmpty:
+        "No saved answers for this agency yet — be the first to log.",
+      answerAtLeastOneHint: "Answer at least 1 question to save for",
+      savedBannerPrefix: "Saved to Firestore for",
+      savedBannerSuffix:
+        "— your answers are now live in this agency's community tally.",
+      alreadySubmittedNote:
+        "You already submitted your 6-question audit for",
+      switchAgencyHint:
+        "Select another agency to submit a separate audit.",
+      submitErrorFallback:
+        "Could not save your answers to Firestore. Please try again.",
+      registryQuickCheckTitle:
+        "Verify Official Registers Directly (Waadi / SNA / SNF)",
+      avoidStamp: "AVOID · NOT ACCEPTED",
+      avoidBadge: "✕ AVOID",
       draftDemandFromQuizBtn: "Generate Money-Back Demand Letter →",
       logCaseFromQuizBtn: "Pre-Fill Case Report & Brief →",
       questions: [
@@ -1498,6 +1553,10 @@ export const UI_TEXT = {
       sliderFilterAll: "All",
       sliderPrevLabel: "Previous companies",
       sliderNextLabel: "Next companies",
+      sliderPauseLabel: "Pause",
+      sliderPlayLabel: "Auto-glide",
+      warehouseStamp: "AVOID · NOT ACCEPTED",
+      warehouseWarningBadge: "✕ AVOID · NOT ACCEPTED",
       companySiteBtn: "Website",
       sliderNote:
         "Factual reference directory of Dutch host warehouses and logistics companies where agency placements occur so workers can verify CAO pay parity (inlenersbeloning)—inclusion does not imply wrongdoing by the host company.",
@@ -1513,7 +1572,14 @@ export const UI_TEXT = {
       agencyTypeBadge: "Uitzendbureau",
       searchLinkedInTeam: "Search Team on LinkedIn ↗",
       officialWebsiteBtn: "Official Website / KvK ↗",
-      verifyRegistriesBtn: "Verify Waadi / SNA / SNF →",
+      verifyRegistriesBtn: "6-Question Audit & Tally ↓",
+      avoidStamp: "AVOID · NOT ACCEPTED",
+      deniedBadge: "✕ DENIED · AVOID",
+      memberAvoidMini: "AVOID",
+      diagnosticSectionEyebrow:
+        "02 · Community Evidence Tally & 6-Question Audit for This Agency",
+      flagAgencyBtn: "Flag Corrupt Pattern",
+      flaggedAgencyBtn: "Flagged ✓",
       hqLabel: "Headquarters",
       hubsLabel: "Recruitment Hubs",
       sectorsLabel: "Core Sectors",

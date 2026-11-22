@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CollaboratingCompaniesSlider } from "@/components/agencies/CollaboratingCompaniesSlider";
 import { useLanguage } from "@/components/layout/LanguageProvider";
+import { WarningWatermarkOverlay } from "@/components/shared/WarningWatermarkOverlay";
 import { getInitials, type AgencyRecord } from "@/lib/agency-team";
 import { getLocalizedAgency } from "@/lib/i18n-data";
 import { UI_TEXT } from "@/lib/i18n-ui";
@@ -116,12 +117,18 @@ export function AgenciesDirectory({ initialAgencies }: AgenciesDirectoryProps) {
                   filteredAgencies.map((agency) => (
                     <article
                       key={agency.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs transition-all hover:border-slate-300 hover:shadow-md"
+                      className="group overflow-hidden rounded-2xl border border-rose-200/80 bg-white shadow-2xs transition-all duration-700 ease-out hover:border-rose-400/90 hover:shadow-md"
                     >
-                      <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 via-slate-900 to-[#D95D24]/90 px-5 py-4 text-white">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="relative overflow-hidden border-b border-rose-950/30 bg-gradient-to-r from-slate-950 via-rose-950/90 to-slate-900 px-5 py-4 text-white">
+                        <WarningWatermarkOverlay
+                          stampText={copy.warehouseStamp}
+                          tone="dark"
+                          stampPlacement="top-right"
+                          compact
+                        />
+                        <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 font-mono text-base font-bold text-white ring-1 ring-white/25">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 font-mono text-base font-bold text-amber-300 ring-1 ring-rose-400/40">
                               {agency.monogram}
                             </div>
                             <div>
@@ -135,6 +142,9 @@ export function AgenciesDirectory({ initialAgencies }: AgenciesDirectoryProps) {
                           </div>
 
                           <div className="flex items-center gap-2">
+                            <span className="rounded-md border border-rose-400/40 bg-rose-950/90 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-rose-200">
+                              {copy.warehouseWarningBadge}
+                            </span>
                             <span className="rounded-full bg-white/15 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-amber-200">
                               {agency.members.length}{" "}
                               {agency.members.length === 1
@@ -142,7 +152,7 @@ export function AgenciesDirectory({ initialAgencies }: AgenciesDirectoryProps) {
                                 : copy.profilesPlural}
                             </span>
                             {agency.members.some((m) => m.photoPath !== null) && (
-                              <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-emerald-100">
+                              <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-amber-100">
                                 {copy.photoRosterBadge}
                               </span>
                             )}

@@ -7,13 +7,9 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function getVoterIdFromCookie(): Promise<string | null> {
-  try {
-    const cookieStore = await cookies();
-    const id = cookieStore.get(VOTER_COOKIE_NAME)?.value;
-    return id && UUID_RE.test(id) ? id : null;
-  } catch {
-    return null;
-  }
+  const cookieStore = await cookies();
+  const id = cookieStore.get(VOTER_COOKIE_NAME)?.value;
+  return id && UUID_RE.test(id) ? id : null;
 }
 
 export async function getOrCreateVoterIdInMutation(): Promise<string> {

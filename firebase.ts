@@ -1,5 +1,10 @@
-import { getApp, getApps, initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import {
+  getApp,
+  getApps,
+  initializeApp,
+  type FirebaseApp,
+} from "firebase/app";
+import { getFirestore, type Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -16,7 +21,20 @@ export function isFirebaseConfigured(): boolean {
   );
 }
 
-export const firebaseApp =
-  getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+let cachedApp: FirebaseApp | null = null;
+let cachedDb: Firestore | null = null;
 
-export const db = getFirestore(firebaseApp);
+export function getFirebaseApp(): FirebaseApp {
+  if (!cachedApp) {
+    cachedApp =
+      getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  }
+  return cachedApp;
+}
+
+export function getDb(): Firestore {
+  if (!cachedDb) {
+    cachedDb = getFirestore(getFirebaseApp());
+  }
+  return cachedDb;
+}

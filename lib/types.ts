@@ -109,6 +109,41 @@ export type InstituteActionOptionId =
   | "politie-fraud-report"
   | "collective-lawsuit";
 
+export type DiagnosticQuestionId =
+  | "q-onboarding"
+  | "q-clawback"
+  | "q-adv-minus"
+  | "q-ignored-gear"
+  | "q-housing-street"
+  | "q-threats-finalpay";
+
+export type DiagnosticAnswer = "yes" | "no" | "unsure";
+
+export type DiagnosticAnswersMap = Partial<
+  Record<DiagnosticQuestionId, DiagnosticAnswer>
+>;
+
+export interface DiagnosticQuestionTally {
+  yes: number;
+  no: number;
+  unsure: number;
+}
+
+export interface AgencyDiagnosticTally {
+  agencySlug: string;
+  agencyName: string;
+  submissions: number;
+  totalYesFlags: number;
+  criticalSubmissions: number;
+  questions: Record<DiagnosticQuestionId, DiagnosticQuestionTally>;
+}
+
+export interface DiagnosticSubmissionInput {
+  agencySlug: string;
+  agencyName?: string;
+  answers: DiagnosticAnswersMap;
+}
+
 export interface PollState {
   redFlagVotes: Record<RedFlagPollOptionId, number>;
   brusselsActionVotes: Record<BrusselsActionOptionId, number>;
@@ -116,6 +151,7 @@ export interface PollState {
   reportFlags: Record<string, number>;
   agencyFlags: Record<string, number>;
   diagnosticConfirmations: number;
+  agencyDiagnostics: Record<string, AgencyDiagnosticTally>;
 }
 
 export interface UserVotesState {
@@ -126,6 +162,8 @@ export interface UserVotesState {
   flaggedReports: string[];
   confirmedComments: string[];
   diagnosticConfirmed: boolean;
+  diagnosticConfirmedAgencies: string[];
+  diagnosticAnswersByAgency: Record<string, DiagnosticAnswersMap>;
 }
 
 export const EMPTY_USER_VOTES: UserVotesState = {
@@ -136,6 +174,8 @@ export const EMPTY_USER_VOTES: UserVotesState = {
   flaggedReports: [],
   confirmedComments: [],
   diagnosticConfirmed: false,
+  diagnosticConfirmedAgencies: [],
+  diagnosticAnswersByAgency: {},
 };
 
 export type CommentTopicId =
